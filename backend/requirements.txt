@@ -1,0 +1,16 @@
+# Web Server
+fastapi
+uvicorn
+python-multipart
+
+# AI & Machine Learning (Ezra's requirements)
+torch
+pytorch-lightning
+tabpfn==0.1.9
+captum
+
+# Medical Imaging & Data
+nibabel
+numpy
+pandas
+opencv-python-headless

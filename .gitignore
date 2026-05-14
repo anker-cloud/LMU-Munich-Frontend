@@ -1,0 +1,40 @@
+# --- Frontend (Node/Vite/React) ---
+node_modules/
+dist/
+build/
+.eslintcache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp/
+.pnp.js
+
+# --- Backend (Python/FastAPI) ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+ENV/
+.env
+.pytest_cache/
+*.db
+*.sqlite3
+
+# --- Docker ---
+.docker/
+# Optional: Ignore data volumes if you save local uploads
+# backend/uploads/ 
+
+# --- IDE & System ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.bak
+
+# --- Miscellaneous ---
+.next/
+out/

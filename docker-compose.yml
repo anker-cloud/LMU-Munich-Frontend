@@ -1,0 +1,25 @@
+services:
+  # Ezra's AI Backend
+  backend:
+    build: ./backend
+    container_name: neuroai-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - S3_BUCKET_OUTPUT=lmu-shap-output
+
+  # React Frontend
+  frontend:
+    build: ./frontend
+    container_name: neuroai-frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules # Prevents host node_modules from overriding container
+    stdin_open: true
+    tty: true
