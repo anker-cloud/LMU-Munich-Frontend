@@ -1,179 +1,34 @@
-// // import React, { useState, useEffect, useRef } from 'react';
-// // import { Brain, FileUp, History, UploadCloud, AlertCircle, ArrowRight, Loader2 } from 'lucide-react';
-// // import { Card, CardContent } from '../components/ui/card';
-// // import { Button } from '../components/ui/button';
-// // import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
-// // import { api } from '../api';
-
-// // const ALLOWED_FORMATS = [".nii", ".nii.gz", ".png"]; 
-
-// // interface IdentificationPageProps {
-// //   onProceed: (id: string, file?: File) => void;
-// // }
-
-// // export function IdentificationPage({ onProceed }: IdentificationPageProps) {
-// //   const [patientList, setPatientList] = useState<{ id: string; label: string }[]>([]);
-// //   const [selectedId, setSelectedId] = useState<string>("");
-// //   const [isDragging, setIsDragging] = useState(false);
-// //   const [isLoading, setIsLoading] = useState(true);
-  
-// //   // FIXED: Split the errors into two specific states
-// //   const [registryError, setRegistryError] = useState<string | null>(null);
-// //   const [uploadError, setUploadError] = useState<string | null>(null);
-  
-// //   const fileInputRef = useRef<HTMLInputElement>(null);
-
-// //   useEffect(() => {
-// //     api.getPatients()
-// //       .then((ids: string[]) => {
-// //         setPatientList(ids.map((id: string) => ({ id, label: `${id} (Anonymized Record)` })));
-// //       })
-// //       // Registry error now goes to its own specific state
-// //       .catch(() => setRegistryError("Could not connect to backend registry."))
-// //       .finally(() => setIsLoading(false));
-// //   }, []);
-
-// //   const validateAndProceed = (file: File) => {
-// //     const fileName = file.name.toLowerCase();
-// //     const isValid = ALLOWED_FORMATS.some(ext => fileName.endsWith(ext));
-
-// //     if (isValid) {
-// //       setUploadError(null);
-// //       onProceed("NEW", file); 
-// //     } else {
-// //       // Upload error now goes to its own specific state
-// //       setUploadError(`*upload format is incorrect (try ${ALLOWED_FORMATS.join(" or ")})`);
-// //     }
-// //   };
-
-// //   const handleDrop = (e: React.DragEvent) => {
-// //     e.preventDefault();
-// //     setIsDragging(false);
-// //     const file = e.dataTransfer.files?.[0];
-// //     if (file) validateAndProceed(file);
-// //   };
-
-// //   return (
-// //     <div className="h-screen bg-[#f8fafc] flex flex-col items-center justify-center p-4">
-// //       <div className="mb-6 text-center">
-// //         <div className="inline-flex p-3 bg-blue-600 rounded-2xl shadow-lg mb-4">
-// //           <Brain className="w-10 h-10 text-white" />
-// //         </div>
-// //         <h1 className="text-3xl font-black text-slate-900 tracking-tight">NeuroAI Portal</h1>
-// //         <p className="text-slate-500 font-medium">Diagnostic Management System</p>
-// //       </div>
-
-// //       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl w-full">
-// //         {/* ACTION: NEW ANALYSIS (Only shows uploadError) */}
-// //         <Card className="border-none shadow-xl bg-white ring-1 ring-slate-100 flex flex-col">
-// //           <CardContent className="p-10 flex flex-col items-center text-center space-y-6">
-// //             <FileUp className="w-10 h-10 text-blue-600" />
-// //             <h2 className="text-xl font-bold">New Analysis</h2>
-            
-// //             <div 
-// //               onClick={() => fileInputRef.current?.click()}
-// //               onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-// //               onDragLeave={() => setIsDragging(false)}
-// //               onDrop={handleDrop}
-// //               className={`w-full py-10 border-2 border-dashed rounded-3xl cursor-pointer transition-all duration-200 
-// //                 ${isDragging 
-// //                   ? "border-blue-500 bg-blue-50 scale-[1.02]" 
-// //                   : uploadError 
-// //                     ? "border-red-300 bg-red-50/30"
-// //                     : "border-slate-200 bg-slate-50/50 hover:bg-slate-100"
-// //                 }`}
-// //             >
-// //               <UploadCloud className={`w-8 h-8 mb-2 mx-auto ${isDragging ? "text-blue-500" : uploadError ? "text-red-400" : "text-slate-400"}`} />
-// //               <p className="text-sm font-bold text-slate-700">
-// //                 {isDragging ? "Drop to Analyze" : "Click or drag to upload"}
-// //                 <span className="text-[10px] block text-slate-400 mt-2 tracking-widest font-black uppercase">
-// //                    NIfTI / PNG (Test Mode)
-// //                 </span>
-// //               </p>
-// //               <input 
-// //                 type="file" 
-// //                 ref={fileInputRef} 
-// //                 className="hidden" 
-// //                 onChange={(e) => e.target.files?.[0] && validateAndProceed(e.target.files[0])} 
-// //                 accept={ALLOWED_FORMATS.join(",")} 
-// //               />
-// //             </div>
-// //             {uploadError && (
-// //               <div className="flex items-center gap-2 text-red-600 text-[11px] font-bold bg-red-50 px-3 py-2 rounded-lg">
-// //                 <AlertCircle className="w-3 h-3" /> {uploadError}
-// //               </div>
-// //             )}
-// //           </CardContent>
-// //         </Card>
-
-// //         {/* ACTION: EXISTING RECORDS (Now correctly handles registryError) */}
-// //         <Card className="border-none shadow-xl bg-white ring-1 ring-slate-100 flex flex-col">
-// //           <CardContent className="p-10 flex flex-col items-center text-center space-y-6">
-// //             <History className="w-10 h-10 text-slate-600" />
-// //             <h2 className="text-xl font-bold">Existing Records</h2>
-// //             <div className="w-full space-y-5 pt-4">
-// //               <div className="space-y-2">
-// //                 <Select onValueChange={setSelectedId} value={selectedId} disabled={isLoading || !!registryError}>
-// //                   <SelectTrigger className={`w-full h-12 rounded-xl ${registryError ? "border-red-200 bg-red-50/30" : "bg-slate-50 border-slate-200"}`}>
-// //                     <SelectValue placeholder={isLoading ? "Loading registry..." : "Choose a scan..."} />
-// //                   </SelectTrigger>
-// //                   <SelectContent>
-// //                     {patientList.map((p) => (
-// //                       <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>
-// //                     ))}
-// //                   </SelectContent>
-// //                 </Select>
-                
-// //                 {/* Registry Error appears right under the dropdown where it belongs */}
-// //                 {registryError && (
-// //                   <div className="flex items-center justify-center gap-2 text-red-600 text-[11px] font-bold mt-2">
-// //                     <AlertCircle className="w-3 h-3" /> {registryError}
-// //                   </div>
-// //                 )}
-// //               </div>
-
-// //               <Button 
-// //                 onClick={() => selectedId && onProceed(selectedId)} 
-// //                 disabled={!selectedId || !!registryError} 
-// //                 className="w-full bg-slate-900 h-12 font-bold text-white rounded-xl shadow-lg hover:bg-black flex items-center justify-center gap-2"
-// //               >
-// //                 Open Report <ArrowRight className="w-4 h-4" />
-// //               </Button>
-// //             </div>
-// //           </CardContent>
-// //         </Card>
-// //       </div>
-// //     </div>
-// //   );
-// // }
-
-
-// import React, { useState, useEffect, useRef } from 'react';
-// import { Brain, FileUp, History, UploadCloud, AlertCircle, ArrowRight } from 'lucide-react';
+// import { useState, useEffect, useRef } from 'react';
+// import { Brain, FileUp, History, UploadCloud, ArrowRight, PlusCircle } from 'lucide-react';
 // import { Card, CardContent } from '../components/ui/card';
 // import { Button } from '../components/ui/button';
 // import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 // import { api } from '../api';
 
-// const ALLOWED_FORMATS = [".nii", ".nii.gz", ".png"]; // TEMPORARY: PNG ALLOWED
+// const ALLOWED_FORMATS = [".nii", ".nii.gz", ".zip"];
 
 // interface IdentificationPageProps {
 //   onProceed: (id: string, file?: File) => void;
+//   onAddScan?: (id: string, file: File) => void;
 // }
 
-// export function IdentificationPage({ onProceed }: IdentificationPageProps) {
-//   const [patientList, setPatientList] = useState<{ id: string; label: string }[]>([]);
+// export function IdentificationPage({ onProceed, onAddScan }: IdentificationPageProps) {
+//   // State is now a simple, primitive string array straight from the server response
+//   const [patientList, setPatientList] = useState<string[]>([]);
 //   const [selectedId, setSelectedId] = useState<string>("");
 //   const [isDragging, setIsDragging] = useState(false);
 //   const [isLoading, setIsLoading] = useState(true);
-//   const [registryError, setRegistryError] = useState<string | null>(null);
-//   const [uploadError, setUploadError] = useState<string | null>(null);
+//   const [registryError, setRegistryError] = useState('');
+//   const [uploadError, setUploadError] = useState('');
+//   const [addScanError, setAddScanError] = useState('');
 //   const fileInputRef = useRef<HTMLInputElement>(null);
+//   const addScanFileInputRef = useRef<HTMLInputElement>(null);
 
 //   useEffect(() => {
 //     api.getPatients()
-//       .then((ids: string[]) => {
-//         setPatientList(ids.map((id: string) => ({ id, label: `${id} (Anonymized Record)` })));
+//       .then((rawStrings: string[]) => {
+//         // Sets the raw server string array directly into state without any transformations
+//         setPatientList(rawStrings);
 //       })
 //       .catch(() => setRegistryError("Could not connect to backend registry."))
 //       .finally(() => setIsLoading(false));
@@ -184,54 +39,112 @@
 //     const isValid = ALLOWED_FORMATS.some(ext => fileName.endsWith(ext));
 
 //     if (isValid) {
-//       setUploadError(null);
-//       onProceed("NEW", file); // Triggers the metadata form in ProcessingPage
+//       setUploadError('');
+//       onProceed("NEW", file);
 //     } else {
-//       setUploadError(`*upload format is incorrect (try nifti or png)`);
+//       setUploadError(`*Invalid format. Please upload NIfTI (.nii, .nii.gz) or .zip files only.`);
+//     }
+//   };
+
+//   const handleExistingPatientClick = () => {
+//     if (selectedId) {
+//       onProceed(selectedId);
+//     }
+//   };
+
+//   const handleAddScanClick = () => {
+//     if (selectedId) {
+//       onProceed(selectedId, undefined);
+//     }
+//   };
+
+//   const handleAddScanFileSelect = (file: File) => {
+//     const fileName = file.name.toLowerCase();
+//     const isValid = ALLOWED_FORMATS.some(ext => fileName.endsWith(ext));
+
+//     if (isValid) {
+//       setAddScanError('');
+//       if (onAddScan && selectedId) {
+//         onAddScan(selectedId, file);
+//       }
+//     } else {
+//       setAddScanError(`*Invalid format. Please upload NIfTI (.nii, .nii.gz) or .zip files only.`);
 //     }
 //   };
 
 //   return (
 //     <div className="h-screen bg-[#f8fafc] flex flex-col items-center justify-center p-4">
 //       <div className="mb-6 text-center">
-//         <div className="inline-flex p-3 bg-blue-600 rounded-2xl shadow-lg mb-4"><Brain className="w-10 h-10 text-white" /></div>
+//         <div className="inline-flex p-3 bg-blue-600 rounded-2xl shadow-lg mb-4">
+//           <Brain className="w-10 h-10 text-white" />
+//         </div>
 //         <h1 className="text-3xl font-black text-slate-900 tracking-tight">NeuroAI Portal</h1>
 //         <p className="text-slate-500 font-medium">Diagnostic Management System</p>
 //       </div>
 
 //       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl w-full">
-//         {/* NEW ANALYSIS */}
+//         {/* NEW PATIENT PATHWAY */}
 //         <Card className="border-none shadow-xl bg-white ring-1 ring-slate-100">
 //           <CardContent className="p-10 flex flex-col items-center text-center space-y-6">
 //             <FileUp className="w-10 h-10 text-blue-600" />
-//             <h2 className="text-xl font-bold">New Analysis</h2>
-//             <div 
+//             <h2 className="text-xl font-bold">New Patient Analysis</h2>
+//             <p className="text-xs text-slate-500">Upload MRI scan for a new system prediction run.</p>
+//             <div
 //               onClick={() => fileInputRef.current?.click()}
 //               onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
 //               onDragLeave={() => setIsDragging(false)}
 //               onDrop={(e) => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files?.[0]; if (f) validateAndProceed(f); }}
-//               className={`w-full py-10 border-2 border-dashed rounded-3xl cursor-pointer transition-all ${isDragging ? "border-blue-500 bg-blue-50" : "border-slate-200 bg-slate-50/50 hover:bg-slate-100"}`}
+//               className={`w-full py-10 border-2 border-dashed rounded-3xl cursor-pointer transition-all ${
+//                 isDragging ? "border-blue-500 bg-blue-50" : "border-slate-200 bg-slate-50/50 hover:bg-slate-100"
+//               }`}
 //             >
 //               <UploadCloud className="w-8 h-8 mb-2 mx-auto text-slate-400" />
-//               <p className="text-sm font-bold text-slate-700">Click or drag to upload <span className="text-[10px] block text-slate-400 mt-2 uppercase">NIfTI / PNG</span></p>
-//               <input type="file" ref={fileInputRef} className="hidden" onChange={(e) => e.target.files?.[0] && validateAndProceed(e.target.files[0])} accept={ALLOWED_FORMATS.join(",")} />
+//               <p className="text-sm font-bold text-slate-700">Click or drag to upload</p>
+//               <p className="text-[10px] text-slate-400 uppercase tracking-widest mt-1">NIfTI or ZIP (DICOM)</p>
+//               <input type="file" ref={fileInputRef} className="hidden" onChange={(e) => e.target.files?.[0] && validateAndProceed(e.target.files[0])} accept=".nii,.gz,.zip" />
 //             </div>
-//             {uploadError && <p className="text-red-600 text-[11px] font-bold">{uploadError}</p>}
+//             {uploadError && <div className="text-red-600 text-[11px] font-bold">{uploadError}</div>}
 //           </CardContent>
 //         </Card>
 
-//         {/* EXISTING RECORDS */}
+//         {/* EXISTING RECORDS PATHWAY */}
 //         <Card className="border-none shadow-xl bg-white ring-1 ring-slate-100">
 //           <CardContent className="p-10 flex flex-col items-center text-center space-y-6">
 //             <History className="w-10 h-10 text-slate-600" />
 //             <h2 className="text-xl font-bold">Existing Records</h2>
+//             <p className="text-xs text-slate-500">Choose a scan from the backend registry database.</p>
 //             <div className="w-full space-y-5 pt-4">
 //               <Select onValueChange={setSelectedId} value={selectedId} disabled={isLoading || !!registryError}>
-//                 <SelectTrigger className="w-full h-12 bg-slate-50 border-slate-200"><SelectValue placeholder={isLoading ? "Loading..." : "Choose a scan..."} /></SelectTrigger>
-//                 <SelectContent>{patientList.map((p) => <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>)}</SelectContent>
+//                 <SelectTrigger className="w-full h-12 bg-slate-50 border-slate-200">
+//                   <SelectValue placeholder={isLoading ? "Loading patients..." : "Choose a patient..."} />
+//                 </SelectTrigger>
+//                 <SelectContent>
+//                   {/* Loops directly over the raw string IDs without template modifications */}
+//                   {patientList.map((id) => (
+//                     <SelectItem key={id} value={id}>
+//                       {id}
+//                     </SelectItem>
+//                   ))}
+//                 </SelectContent>
 //               </Select>
-//               {registryError && <p className="text-red-600 text-[11px] font-bold">{registryError}</p>}
-//               <Button onClick={() => selectedId && onProceed(selectedId)} disabled={!selectedId || !!registryError} className="w-full bg-slate-900 h-12 font-bold text-white rounded-xl shadow-lg hover:bg-black flex items-center justify-center gap-2">Open Report <ArrowRight className="w-4 h-4" /></Button>
+//               {registryError && <div className="text-red-600 text-[11px] font-bold">{registryError}</div>}
+//               <Button
+//                 onClick={handleAddScanClick}
+//                 disabled={!selectedId || !!registryError}
+//                 className="w-full bg-blue-600 h-12 font-bold text-white rounded-xl shadow-lg hover:bg-blue-700 flex items-center justify-center gap-2"
+//               >
+//                 <PlusCircle className="w-4 h-4" /> Add New Scan
+//               </Button>
+//               <Button onClick={handleExistingPatientClick} disabled={!selectedId || !!registryError} className="w-full bg-slate-900 h-12 font-bold text-white rounded-xl shadow-lg hover:bg-black flex items-center justify-center gap-2">
+//                 Open Dashboard <ArrowRight className="w-4 h-4" />
+//               </Button>
+//               <input
+//                 type="file"
+//                 ref={addScanFileInputRef}
+//                 className="hidden"
+//                 onChange={(e) => e.target.files?.[0] && handleAddScanFileSelect(e.target.files[0])}
+//                 accept=".nii,.gz,.zip"
+//               />
 //             </div>
 //           </CardContent>
 //         </Card>
@@ -242,35 +155,37 @@
 
 
 
-// frontend/src/pages/IdentificationPage.tsx
 
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Brain, FileUp, History, UploadCloud, ArrowRight } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
-import { Button } from '../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { api } from '../api';
 
-// 1. RESTRICTED FORMATS
-const ALLOWED_FORMATS = [".nii", ".nii.gz", ".zip"]; 
+// Allowed formats defined by the technical testing specification [cite: 9, 131]
+const ALLOWED_FORMATS = [".nii", ".nii.gz", ".zip"];
 
 interface IdentificationPageProps {
   onProceed: (id: string, file?: File) => void;
+  onAddScan?: (id: string, file: File) => void;
+  onRunNewScan?: (id: string) => void;
 }
 
-export function IdentificationPage({ onProceed }: IdentificationPageProps) {
-  const [patientList, setPatientList] = useState<{ id: string; label: string }[]>([]);
+export function IdentificationPage({ onProceed, onAddScan, onRunNewScan }: IdentificationPageProps) {
+  const [patientList, setPatientList] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [registryError, setRegistryError] = useState(''); 
-  const [uploadError, setUploadError] = useState(''); 
+  const [registryError, setRegistryError] = useState('');
+  const [uploadError, setUploadError] = useState('');
+  const [addScanError, setAddScanError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const addScanFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     api.getPatients()
-      .then((ids: string[]) => {
-        setPatientList(ids.map((id: string) => ({ id, label: `${id} (Anonymized)` })));
+      .then((rawStrings: string[]) => {
+        setPatientList(rawStrings);
       })
       .catch(() => setRegistryError("Could not connect to backend registry."))
       .finally(() => setIsLoading(false));
@@ -284,54 +199,142 @@ export function IdentificationPage({ onProceed }: IdentificationPageProps) {
       setUploadError('');
       onProceed("NEW", file);
     } else {
-      // Show error if format is incorrect
       setUploadError(`*Invalid format. Please upload NIfTI (.nii, .nii.gz) or .zip files only.`);
     }
   };
 
+  const handleExistingPatientClick = () => {
+    if (selectedId) {
+      onProceed(selectedId);
+    }
+  };
+
+  const handleAddScanClick = () => {
+    if (selectedId && onRunNewScan) {
+      onRunNewScan(selectedId);
+    }
+  };
+
+  const handleAddScanFileSelect = (file: File) => {
+    const fileName = file.name.toLowerCase();
+    const isValid = ALLOWED_FORMATS.some(ext => fileName.endsWith(ext));
+
+    if (isValid) {
+      setAddScanError('');
+      onProceed(selectedId, file);
+    } else {
+      setAddScanError(`*Invalid format. Please upload NIfTI (.nii, .nii.gz) or .zip files only.`);
+    }
+  };
+
   return (
-    <div className="h-screen bg-[#f8fafc] flex flex-col items-center justify-center p-4">
-      <div className="mb-6 text-center">
-        <div className="inline-flex p-3 bg-blue-600 rounded-2xl shadow-lg mb-4"><Brain className="w-10 h-10 text-white" /></div>
-        <h1 className="text-3xl font-black text-slate-900 tracking-tight">NeuroAI Portal</h1>
-        <p className="text-slate-500 font-medium">Diagnostic Management System</p>
-      </div>
+    <div className="h-screen w-screen bg-[#f8fafc] flex flex-col items-center justify-center p-4 overflow-hidden select-none">
+      
+      <div className="w-full max-w-4xl flex flex-col items-center animate-in fade-in duration-300">
+        
+        {/* Header Section */}
+        <div className="mb-5 text-center">
+          <div className="inline-flex p-2.5 bg-blue-600 rounded-2xl shadow-lg mb-3">
+            <Brain className="w-9 h-9 text-white" />
+          </div>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">NeuroAI Portal</h1>
+          <p className="text-xs text-slate-500 font-semibold tracking-wide">Diagnostic Management System</p>
+        </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl w-full">
-        <Card className="border-none shadow-xl bg-white ring-1 ring-slate-100">
-          <CardContent className="p-10 flex flex-col items-center text-center space-y-6">
-            <FileUp className="w-10 h-10 text-blue-600" />
-            <h2 className="text-xl font-bold">New Analysis</h2>
-            <div 
-              onClick={() => fileInputRef.current?.click()}
-              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-              onDragLeave={() => setIsDragging(false)}
-              onDrop={(e) => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files?.[0]; if (f) validateAndProceed(f); }}
-              className={`w-full py-10 border-2 border-dashed rounded-3xl cursor-pointer transition-all ${isDragging ? "border-blue-500 bg-blue-50" : "border-slate-200 bg-slate-50/50 hover:bg-slate-100"}`}
-            >
-              <UploadCloud className="w-8 h-8 mb-2 mx-auto text-slate-400" />
-              <p className="text-sm font-bold text-slate-700">Click or drag to upload</p>
-              <p className="text-[10px] text-slate-400 uppercase tracking-widest mt-1">NIfTI or ZIP</p>
-              <input type="file" ref={fileInputRef} className="hidden" onChange={(e) => e.target.files?.[0] && validateAndProceed(e.target.files[0])} accept=".nii,.gz,.zip" />
-            </div>
-            {uploadError && <div className="error text-[11px] w-full">{uploadError}</div>}
-          </CardContent>
-        </Card>
+        {/* Proportional Grid Layer */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+          
+          {/* LEFT CARD: NEW PATIENT ANALYSIS */}
+          {/* Added min-h-[370px] to gently elongate the card profile */}
+          <Card className="border-none shadow-xl bg-white ring-1 ring-slate-100 flex flex-col rounded-3xl min-h-[370px]">
+            {/* Fine-tuned vertical padding to md:py-10 for proportional spacing */}
+            <CardContent className="p-6 py-9 md:py-10 md:px-8 flex flex-col items-center text-center space-y-5 flex-1 justify-center">
+              <FileUp className="w-9 h-9 text-blue-600" />
+              <h2 className="text-lg font-bold text-slate-900">New Patient Analysis</h2>
+              
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files?.[0]; if (f) validateAndProceed(f); }}
+                className={`w-full py-8 border-2 border-dashed rounded-2xl cursor-pointer transition-all ${
+                  isDragging ? "border-blue-500 bg-blue-50/50" : "border-slate-300 bg-slate-50/50 hover:bg-slate-100"
+                }`}
+              >
+                <UploadCloud className="w-8 h-8 mb-1 mx-auto text-slate-400" />
+                <p className="text-xs font-bold text-slate-700">Click or drag to upload</p>
+                <p className="text-[9px] text-slate-500 uppercase tracking-widest mt-0.5 font-bold">NIfTI or ZIP</p>
+                <input type="file" ref={fileInputRef} className="hidden" onChange={(e) => e.target.files?.[0] && validateAndProceed(e.target.files[0])} accept=".nii,.gz,.zip" />
+              </div>
+              {uploadError && <div className="text-red-600 text-[10px] font-bold w-full text-center">{uploadError}</div>}
+            </CardContent>
+          </Card>
 
-        <Card className="border-none shadow-xl bg-white ring-1 ring-slate-100">
-          <CardContent className="p-10 flex flex-col items-center text-center space-y-6">
-            <History className="w-10 h-10 text-slate-600" />
-            <h2 className="text-xl font-bold">Existing Records</h2>
-            <div className="w-full space-y-5 pt-4">
-              <Select onValueChange={setSelectedId} value={selectedId} disabled={isLoading || !!registryError}>
-                <SelectTrigger className="w-full h-12 bg-slate-50 border-slate-200"><SelectValue placeholder={isLoading ? "Loading..." : "Choose a scan..."} /></SelectTrigger>
-                <SelectContent>{patientList.map((p) => <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>)}</SelectContent>
-              </Select>
-              {registryError && <div className="error text-[11px] w-full">{registryError}</div>}
-              <Button onClick={() => selectedId && onProceed(selectedId)} disabled={!selectedId || !!registryError} className="w-full bg-slate-900 h-12 font-bold text-white rounded-xl shadow-lg hover:bg-black flex items-center justify-center gap-2">Open Report <ArrowRight className="w-4 h-4" /></Button>
-            </div>
-          </CardContent>
-        </Card>
+          {/* RIGHT CARD: EXISTING DATABASE RECORDS */}
+          {/* Added min-h-[370px] to keep card sizes perfectly uniform */}
+          <Card className="border-none shadow-xl bg-white ring-1 ring-slate-100 flex flex-col rounded-3xl min-h-[370px]">
+            {/* Fine-tuned vertical padding to md:py-10 for proportional spacing */}
+            <CardContent className="p-6 py-9 md:py-10 md:px-8 flex flex-col items-center text-center space-y-5 flex-1 justify-center">
+              <History className="w-9 h-9 text-slate-600" />
+              <h2 className="text-lg font-bold text-slate-900">Existing Records</h2>
+              
+              <div className="w-full space-y-4 pt-2">
+                <Select onValueChange={setSelectedId} value={selectedId} disabled={isLoading || !!registryError}>
+                  <SelectTrigger className="w-full h-11 bg-slate-50 border-slate-300 rounded-xl font-semibold text-slate-800 text-xs focus:ring-2 focus:ring-blue-500/20">
+                    <SelectValue placeholder={isLoading ? "Loading..." : "Choose a scan..."} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {patientList.map((id) => (
+                      <SelectItem key={id} value={id}>
+                        {id}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {registryError && <div className="text-red-600 text-[10px] font-bold w-full text-center">{registryError}</div>}
+                {addScanError && <div className="text-red-600 text-[10px] font-bold w-full text-center">{addScanError}</div>}
+
+                {/* Content Action Button Cluster */}
+                <div className="w-full space-y-2.5">
+                  <button
+                    type="button"
+                    onClick={handleAddScanClick}
+                    disabled={!selectedId || !!registryError}
+                    className={`w-full h-11 font-bold rounded-xl flex items-center justify-center gap-2 text-xs transition-all tracking-wide outline-none border border-blue-200 bg-white text-blue-600 ${
+                      !selectedId || !!registryError
+                      ? 'opacity-100 cursor-not-allowed shadow-none'
+                      : 'hover:bg-blue-50 hover:border-blue-300 cursor-pointer'
+                    }`}
+                  >
+                    Run New Scan 
+                  </button>
+
+                  <button 
+                    type="button"
+                    onClick={handleExistingPatientClick} 
+                    disabled={!selectedId || !!registryError} 
+                    className={`w-full h-11 font-bold rounded-xl flex items-center justify-center gap-2 transition-all outline-none text-xs bg-slate-900 text-white shadow-md ${
+                      !selectedId || !!registryError
+                      ? 'opacity-100 cursor-not-allowed shadow-none'
+                      : 'hover:bg-black cursor-pointer'
+                    }`}
+                  >
+                    Open Dashboard <ArrowRight className="w-3.5 h-3.5 ml-0.5" />
+                  </button>
+                </div>
+                
+                <input
+                  type="file"
+                  ref={addScanFileInputRef}
+                  className="hidden"
+                  onChange={(e) => e.target.files?.[0] && handleAddScanFileSelect(e.target.files[0])}
+                  accept=".nii,.gz,.zip"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
       </div>
     </div>
   );

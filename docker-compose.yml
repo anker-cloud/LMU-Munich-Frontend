@@ -1,25 +1,23 @@
 services:
-  # Ezra's AI Backend
-  backend:
-    build: ./backend
-    container_name: neuroai-backend
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./backend:/app
-    environment:
-      - S3_BUCKET_OUTPUT=lmu-shap-output
-
-  # React Frontend
+  # React Frontend (development)
   frontend:
     build: ./frontend
     container_name: neuroai-frontend
     ports:
       - "5173:5173"
-    depends_on:
-      - backend
     volumes:
       - ./frontend:/app
       - /app/node_modules # Prevents host node_modules from overriding container
+    environment:
+      # Points to production backend
+      - VITE_API_URL=http://35.159.51.22:8000
     stdin_open: true
     tty: true
+
+# NOTE: Backend is not included in this docker-compose
+# The production backend runs at http://35.159.51.22:8000 (Lmu_munich on AWS EC2)
+#
+# If you need to run the Lmu_munich backend locally:
+# 1. Navigate to Lmu_munich folder
+# 2. Install dependencies: pip install -r requirements.txt
+# 3. Run: python -m uvicorn api:app --host 0.0.0.0 --port 8000 --reload

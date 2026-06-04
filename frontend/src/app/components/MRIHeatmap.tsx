@@ -1,34 +1,51 @@
 import { useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, ImageOff, AlertTriangle } from 'lucide-react';
 
 interface MRIHeatmapProps {
-  imageUrl: string;
+  imageUrl?: string;
   title?: string;
 }
 
 export function MRIHeatmap({ imageUrl, title = "MRI T1w with Attention Heatmap" }: MRIHeatmapProps) {
-  const [showHeatmap, setShowHeatmap] = useState(true);
+  const [networkError, setNetworkError] = useState(false);
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+    <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 flex flex-col h-full">
+      <div className="flex items-center justify-between mb-4 border-b pb-2 border-slate-50">
+        <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+          <Eye className="w-4 h-4 text-blue-500" /> {title}
+        </h3>
+        <span className="text-[10px] bg-slate-100 text-slate-500 font-mono px-2 py-0.5 rounded uppercase tracking-wider">Grad-CAM</span>
       </div>
       
-      <div className="relative bg-gray-900 rounded-lg overflow-hidden">
-        <img
-          src={imageUrl}
-          alt="MRI Scan with GRAD-CAM Heatmap"
-          className="w-full h-auto object-contain"
-        />
+      <div className="relative bg-slate-900 rounded-lg overflow-hidden flex-1 flex items-center justify-center p-4 min-h-[260px]">
+        {imageUrl && !networkError ? (
+          <img
+            src={imageUrl}
+            alt="MRI Scan with GRAD-CAM Heatmap"
+            className="w-full h-auto max-h-[280px] object-contain rounded animate-in fade-in duration-500"
+            onError={() => setNetworkError(true)} // Set exact flag on asset load crash
+          />
+        ) : networkError ? (
+          <div className="text-center space-y-2 p-6 text-red-400">
+            <AlertTriangle className="w-8 h-8 mx-auto opacity-90 animate-pulse" />
+            <p className="text-xs font-black uppercase tracking-wide">S3 Asset Load Failure</p>
+            <p className="text-[11px] text-slate-400 max-w-xs">The presigned URL has expired or the requested image file could not be fetched from the remote storage server.</p>
+          </div>
+        ) : (
+          <div className="text-center space-y-2 p-6 text-slate-400">
+            <ImageOff className="w-8 h-8 mx-auto opacity-40" />
+            <p className="text-xs font-bold">No attention mapping payload link provided</p>
+          </div>
+        )}
       </div>
       
-      <div className="mt-4 flex items-center justify-between">
+      <div className="mt-4 flex items-center justify-between border-t pt-3 border-slate-50">
         <div className="flex items-center gap-2">
-          <div className="w-24 h-3 bg-gradient-to-r from-blue-400 via-yellow-400 to-red-600 rounded" />
-          <span className="text-xs text-gray-500">Low → High Activation</span>
+          <div className="w-24 h-2.5 bg-gradient-to-r from-blue-500 via-yellow-400 to-red-600 rounded" />
+          <span className="text-[10px] font-bold text-slate-400 uppercase">Activation Intensity</span>
         </div>
-        <span className="text-xs text-gray-500">GRAD-CAM Visualization</span>
+        <span className="text-[10px] font-mono text-slate-400">Live Server Mapping Vector</span>
       </div>
     </div>
   );

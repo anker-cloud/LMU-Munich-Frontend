@@ -4,8 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 
 interface PatientInfoProps {
   id: string;
-  age: number | string;
-  gender: string;
+  age?: number | string;
+  gender?: string | number;
   education?: number | string;
   cdr?: number | string;
   mmse?: number | string;
@@ -14,14 +14,51 @@ interface PatientInfoProps {
 }
 
 export function PatientInfo({ id, age, gender, education, cdr, mmse, apgen1, apgen2 }: PatientInfoProps) {
+  
+  const parseGender = () => {
+    if (gender === undefined || gender === null || gender === '') return 'N/A';
+    const g = String(gender).trim().toLowerCase();
+    if (g === '1' || g === 'male') return 'Male';
+    if (g === '2' || g === 'female') return 'Female';
+    return gender; // Return whatever string text already came back from backend
+  };
+
   const infoItems = [
-    { label: 'Patient ID', value: id, icon: User },
-    { label: 'Age', value: `${age} Years`, icon: Calendar },
-    { label: 'Gender', value: gender, icon: Activity },
-    { label: 'Education', value: `${education} Years`, icon: GraduationCap },
-    { label: 'CDR Score', value: cdr, icon: BrainCircuit },
-    { label: 'MMSE Score', value: `${mmse}/30`, icon: Activity },
-    { label: 'APOE Genotype', value: `ε${apgen1} / ε${apgen2}`, icon: Dna },
+    { 
+      label: 'Patient ID', 
+      value: id || 'N/A', 
+      icon: User 
+    },
+    { 
+      label: 'Age', 
+      value: age !== undefined && age !== null && age !== '' ? `${age} Years` : 'N/A', 
+      icon: Calendar 
+    },
+    { 
+      label: 'Gender', 
+      value: parseGender(), 
+      icon: Activity 
+    },
+    { 
+      label: 'Education', 
+      value: education !== undefined && education !== null && education !== '' ? `${education} Years` : 'N/A', 
+      icon: GraduationCap 
+    },
+    { 
+      label: 'CDR Score', 
+      value: cdr !== undefined && cdr !== null && cdr !== '' ? cdr : 'N/A', 
+      icon: BrainCircuit 
+    },
+    { 
+      label: 'MMSE Score', 
+      value: mmse !== undefined && mmse !== null && mmse !== '' ? `${mmse}/30` : 'N/A', 
+      icon: Activity 
+    },
+    { 
+      label: 'APOE Genotype', 
+      value: apgen1 && apgen2 ? `ε${apgen1} / ε${apgen2}` : 'N/A', 
+      icon: Dna 
+    },
   ];
 
   return (
@@ -29,7 +66,7 @@ export function PatientInfo({ id, age, gender, education, cdr, mmse, apgen1, apg
       <CardHeader className="pb-2 border-b border-slate-50 mb-4">
         <CardTitle className="text-sm font-black text-slate-400 uppercase tracking-widest">Clinical Profile</CardTitle>
       </CardHeader>
-      {/* Updated to a 2-column grid and flex-1 to ensure it fills vertical space */}
+      
       <CardContent className="grid grid-cols-2 gap-x-8 gap-y-6 flex-1 content-center">
         {infoItems.map((item, idx) => (
           <div key={idx} className="flex flex-col gap-1 group">
@@ -39,7 +76,7 @@ export function PatientInfo({ id, age, gender, education, cdr, mmse, apgen1, apg
               </div>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{item.label}</span>
             </div>
-            <span className="text-sm font-black text-slate-700 ml-9">{item.value || 'N/A'}</span>
+            <span className="text-sm font-black text-slate-700 ml-9">{item.value}</span>
           </div>
         ))}
       </CardContent>
