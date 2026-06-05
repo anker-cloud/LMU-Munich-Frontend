@@ -13,9 +13,10 @@ interface ProcessingPageProps {
   patientId: string;
   file?: File;
   isAddingScan?: boolean;
+  existingTabularData?: any;
 }
 
-export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingScan }: ProcessingPageProps) {
+export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingScan, existingTabularData }: ProcessingPageProps) {
   // If adding scan to existing patient with file, start analyzing immediately
   const [step, setStep] = useState<'form' | 'upload' | 'analyzing'>(
     isAddingScan && file ? 'analyzing' : (patientId === 'NEW' ? 'form' : 'upload')
@@ -108,7 +109,8 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
         }
       } else {
         // Use predict endpoint for existing patients
-        result = await api.predictPatient(patientId, fileToUse);
+        // Pass existingTabularData if available to handle cases where backend can't find it
+        result = await api.predictPatient(patientId, fileToUse, existingTabularData);
       }
       setAnalysisResult(result);
     } catch (e: any) {

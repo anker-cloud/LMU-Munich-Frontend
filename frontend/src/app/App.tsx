@@ -342,6 +342,7 @@ export default function App() {
         patientId={sessionData.id}
         file={sessionData.file}
         isAddingScan={sessionData.isAddingScan}
+        existingTabularData={sessionData.tabular}
         onComplete={handleAnalysisComplete}
         onBack={handleReset}
       />
