@@ -54,9 +54,12 @@ export const api = {
       APGEN2: Number(patientData.APGEN2)
     };
 
+    console.log('Patient ID:', patientData.PATIENT_ID);
     console.log('Tabular data being sent:', tabularData);
     console.log('File being uploaded:', file.name, file.size, file.type);
 
+    // Send patient_id as a separate form field (backend should use this if provided)
+    formData.append('patient_id', patientData.PATIENT_ID);
     formData.append('tabular', JSON.stringify(tabularData));
     formData.append('t1w_file', file);
     formData.append('explain', 'true');
