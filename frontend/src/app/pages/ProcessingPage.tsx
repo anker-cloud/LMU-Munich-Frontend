@@ -528,22 +528,12 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
               </div>
             </div>
 
-            <div className="flex justify-between items-center pt-4 border-t border-slate-100 gap-4">
-              {onBack && (
-                <Button
-                  onClick={onBack}
-                  className="h-14 px-8 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl shadow-md flex items-center gap-2 transition-all"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Back
-                </Button>
-              )}
-
+            <div className="flex justify-end pt-4 border-t border-slate-100">
               <Button
                 onClick={() => onComplete(analysisResult)}
-                disabled={progress < 100 || !analysisResult}
-                className={`h-14 px-10 text-sm font-bold transition-all shadow-lg flex items-center gap-2 rounded-xl tracking-wide ml-auto ${
-                  (progress === 100 && analysisResult)
+                disabled={progress < 100}
+                className={`h-14 px-10 text-sm font-bold transition-all shadow-lg flex items-center gap-2 rounded-xl tracking-wide ${
+                  progress === 100
                   ? 'bg-blue-600 hover:bg-blue-700 text-white scale-100 hover:scale-105 active:scale-95'
                   : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
                 }`}
