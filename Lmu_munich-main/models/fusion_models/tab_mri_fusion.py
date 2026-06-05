@@ -73,7 +73,18 @@ class TabMRIFusionModel(Base_Model):
 
         # TabPFN classifier — loaded lazily at forward time (needs GPU)
         self._tabpfn = None
+
+        # Try to get tabpfn_path from hparams
         self._tabpfn_path = hparams.get('tabpfn_path')
+
+        # If not in hparams, try to construct it from the checkpoint directory
+        # This handles cases where checkpoint wasn't patched with patch_checkpoints.py
+        if self._tabpfn_path is None or not os.path.exists(str(self._tabpfn_path)):
+            # Try to find tabpfn file relative to the module
+            _module_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            _tabpfn_default = os.path.join(_module_dir, 'model_checkpoints', 'TAB', 'TAB', 'tabpfn_seed2.p')
+            if os.path.exists(_tabpfn_default):
+                self._tabpfn_path = _tabpfn_default
 
         # ── Fusion head ───────────────────────────────────────────────────────
         # concat(tab_embed[64], mri_embed[64]) → 128 → 64 → n_classes
@@ -88,7 +99,8 @@ class TabMRIFusionModel(Base_Model):
         # ── Loss ──────────────────────────────────────────────────────────────
         loss = hparams.get('loss', 'focal_loss')
         if loss == 'cross_entropy':
-            self.criterion = nn.CrossEntropyLoss(weight=hparams['class_weights'])
+            class_weights = hparams.get('class_weights', None)
+            self.criterion = nn.CrossEntropyLoss(weight=class_weights)
         elif loss == 'focal_loss':
             self.criterion = FocalLoss(gamma=hparams.get('fl_gamma', 2))
         else:

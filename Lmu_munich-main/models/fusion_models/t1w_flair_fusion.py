@@ -204,10 +204,12 @@ class T1wFlairFusionModel(Base_Model):
 
         self.fuse_model = nn.Sequential(*modules)
 
-        if hparams['loss'] == 'cross_entropy':
-            self.criterion = nn.CrossEntropyLoss(weight=hparams['class_weights'])
-        elif hparams['loss']=='focal_loss':
-            self.criterion = FocalLoss(gamma=self.hparams['fl_gamma'])
+        loss = hparams.get('loss', 'focal_loss')
+        if loss == 'cross_entropy':
+            class_weights = hparams.get('class_weights', None)
+            self.criterion = nn.CrossEntropyLoss(weight=class_weights)
+        elif loss == 'focal_loss':
+            self.criterion = FocalLoss(gamma=self.hparams.get('fl_gamma', 2))
         else:
             raise ValueError('Loss invalid!')
 

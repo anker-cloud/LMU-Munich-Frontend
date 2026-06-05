@@ -37,10 +37,12 @@ class TabularNN(Base_Model):
         modules.append(nn.Linear(n_in, hparams["n_classes"]))
         '''
 
-        self.criterion = nn.CrossEntropyLoss(weight=hparams['class_weights'])
+        class_weights = hparams.get('class_weights', None)
+        self.criterion = nn.CrossEntropyLoss(weight=class_weights)
         '''
         if hparams['loss'] == 'cross_entropy':
-            self.criterion = nn.CrossEntropyLoss(weight=hparams['class_weights'])
+            class_weights = hparams.get('class_weights', None)
+            self.criterion = nn.CrossEntropyLoss(weight=class_weights)
         elif hparams['loss'] == 'focal_loss':
             self.criterion = FocalLoss(gamma=self.hparams['fl_gamma'])
         else:
