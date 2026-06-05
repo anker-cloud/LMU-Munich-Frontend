@@ -40,8 +40,25 @@ export default function App() {
     }
   };
 
-  const handleAnalysisComplete = (backendResult: any) => {
-    setSessionData(backendResult);
+  const handleAnalysisComplete = async (backendResult: any) => {
+    // If we have a patient_id, fetch the full patient record for consistent data structure
+    const patientId = backendResult?.patient_id;
+
+    if (patientId) {
+      try {
+        // Fetch full patient record to ensure consistent data structure
+        const fullRecord = await api.getPatientRecord(patientId);
+        setSessionData(fullRecord);
+      } catch (error) {
+        console.error("Failed to fetch full patient record:", error);
+        // Fallback to using the backend result directly
+        setSessionData(backendResult);
+      }
+    } else {
+      // No patient_id, use backend result as-is
+      setSessionData(backendResult);
+    }
+
     setIsProcessing(false);
   };
 
