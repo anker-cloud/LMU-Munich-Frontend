@@ -344,14 +344,15 @@ export default function App() {
   // Extract Patient ID parameters safely
   const patientId = extractPrimitive(sessionData, "patient_id") || extractPrimitive(sessionData, "id") || "N/A";
 
-  // Extract Clinical Metadata Variables dynamically across flat/nested structures
-  const ageValue = extractPrimitive(dataToDisplay, "age");
-  const genderValue = extractPrimitive(dataToDisplay, "sex") || extractPrimitive(dataToDisplay, "gender");
-  const educationValue = extractPrimitive(dataToDisplay, "education");
-  const cdrValue = extractPrimitive(dataToDisplay, "cdr");
-  const mmseValue = extractPrimitive(dataToDisplay, "mmse");
-  const apgen1Value = extractPrimitive(dataToDisplay, "apgen1");
-  const apgen2Value = extractPrimitive(dataToDisplay, "apgen2");
+  // Extract Clinical Metadata Variables - check patient_info first, then fall back to flat structure
+  const patientInfoObj = extractObject(dataToDisplay, "patient_info");
+  const ageValue = patientInfoObj?.age ?? extractPrimitive(dataToDisplay, "age");
+  const genderValue = patientInfoObj?.sex ?? extractPrimitive(dataToDisplay, "sex") || extractPrimitive(dataToDisplay, "gender");
+  const educationValue = patientInfoObj?.education ?? extractPrimitive(dataToDisplay, "education");
+  const cdrValue = patientInfoObj?.cdr ?? extractPrimitive(dataToDisplay, "cdr");
+  const mmseValue = patientInfoObj?.mmse ?? extractPrimitive(dataToDisplay, "mmse");
+  const apgen1Value = patientInfoObj?.apgen1 ?? extractPrimitive(dataToDisplay, "apgen1");
+  const apgen2Value = patientInfoObj?.apgen2 ?? extractPrimitive(dataToDisplay, "apgen2");
 
   // Extract Machine Learning Architecture Elements cleanly
   const primaryDiag = extractPrimitive(dataToDisplay, "prediction") || extractPrimitive(dataToDisplay, "diagnosis") || "";

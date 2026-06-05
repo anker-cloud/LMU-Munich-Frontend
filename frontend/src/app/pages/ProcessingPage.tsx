@@ -127,6 +127,20 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
         // Use register-and-predict endpoint for new patients
         console.log('Sending data:', formData);
         result = await api.registerAndPredict(formData, fileToUse);
+
+        // Ensure patient_info is included in result for dashboard display
+        // Backend should return this, but we'll merge as fallback
+        if (result && !result.patient_info) {
+          result.patient_info = {
+            age: Number(formData.AGE),
+            sex: formData.SEX === "1" ? "Male" : "Female",
+            education: Number(formData.EDUCATION),
+            cdr: Number(formData.CDR),
+            mmse: Number(formData.MMSE),
+            apgen1: Number(formData.APGEN1),
+            apgen2: Number(formData.APGEN2),
+          };
+        }
       } else {
         // Use predict endpoint for existing patients
         result = await api.predictPatient(formData.PATIENT_ID.trim(), fileToUse);
