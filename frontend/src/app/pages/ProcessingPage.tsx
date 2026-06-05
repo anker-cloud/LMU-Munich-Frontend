@@ -554,17 +554,27 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
             </div>
 
             <div className="flex justify-end pt-4 border-t border-slate-100">
-              <Button
-                onClick={() => onComplete(analysisResult)}
-                disabled={!analysisResult}
-                className={`h-14 px-10 text-sm font-bold transition-all shadow-lg flex items-center gap-2 rounded-xl tracking-wide ${
-                  analysisResult
-                  ? 'bg-blue-600 hover:bg-blue-700 text-white scale-100 hover:scale-105 active:scale-95'
-                  : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
-                }`}
-              >
-                View Dashboard Panel <ArrowRight className="w-4 h-4" />
-              </Button>
+              {error ? (
+                <Button
+                  onClick={onBack}
+                  className="h-14 px-10 text-sm font-bold transition-all shadow-lg flex items-center gap-2 rounded-xl tracking-wide bg-slate-600 hover:bg-slate-700 text-white scale-100 hover:scale-105 active:scale-95"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Go Back
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => onComplete(analysisResult)}
+                  disabled={!analysisResult}
+                  className={`h-14 px-10 text-sm font-bold transition-all shadow-lg flex items-center gap-2 rounded-xl tracking-wide ${
+                    analysisResult
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white scale-100 hover:scale-105 active:scale-95'
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+                  }`}
+                >
+                  View Dashboard Panel <ArrowRight className="w-4 h-4" />
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
