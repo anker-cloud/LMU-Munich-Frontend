@@ -145,7 +145,7 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
   };
 
   useEffect(() => {
-    if (step === 'analyzing' && !error) {
+    if (step === 'analyzing' && !error && !analysisResult) {
       const timer = setInterval(() => {
         setProgress((prev) => {
           if (prev >= 100) { clearInterval(timer); return 100; }
@@ -154,7 +154,15 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
       }, 150);
       return () => clearInterval(timer);
     }
-  }, [step, error]);
+    // Stop progress and reset when error occurs
+    if (error) {
+      setProgress(0);
+    }
+    // Set progress to 100 when result is received
+    if (analysisResult) {
+      setProgress(100);
+    }
+  }, [step, error, analysisResult]);
 
   // Auto-start analysis when adding scan to existing patient
   useEffect(() => {
@@ -520,13 +528,23 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
               </div>
             </div>
 
-            <div className="flex justify-end pt-4 border-t border-slate-100">
-              <Button 
-                onClick={() => onComplete(analysisResult)} 
-                disabled={progress < 100 || !analysisResult} 
-                className={`h-14 px-10 text-sm font-bold transition-all shadow-lg flex items-center gap-2 rounded-xl tracking-wide ${ 
-                  (progress === 100 && analysisResult) 
-                  ? 'bg-blue-600 hover:bg-blue-700 text-white scale-100 hover:scale-105 active:scale-95' 
+            <div className="flex justify-between items-center pt-4 border-t border-slate-100 gap-4">
+              {onBack && (
+                <Button
+                  onClick={onBack}
+                  className="h-14 px-8 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl shadow-md flex items-center gap-2 transition-all"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Back
+                </Button>
+              )}
+
+              <Button
+                onClick={() => onComplete(analysisResult)}
+                disabled={progress < 100 || !analysisResult}
+                className={`h-14 px-10 text-sm font-bold transition-all shadow-lg flex items-center gap-2 rounded-xl tracking-wide ml-auto ${
+                  (progress === 100 && analysisResult)
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white scale-100 hover:scale-105 active:scale-95'
                   : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
                 }`}
               >
