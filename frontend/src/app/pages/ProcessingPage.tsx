@@ -27,13 +27,9 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
   const [uploadedFile, setUploadedFile] = useState<File | undefined>(file);
   const [isDragging, setIsDragging] = useState(false);
   const [fileError, setFileError] = useState('');
-  const [patientIdWarning, setPatientIdWarning] = useState('');
-  const [isCheckingPatientId, setIsCheckingPatientId] = useState(false);
-  const [idCheckStatus, setIdCheckStatus] = useState<'idle' | 'checking' | 'exists' | 'accepted'>('idle');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
-    PATIENT_ID: patientId === 'NEW' ? "" : patientId,
     SEX: "",
     AGE: "",
     EDUCATION: "",
@@ -49,16 +45,14 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
     const edu = Number(formData.EDUCATION);
     const mmse = Number(formData.MMSE);
 
-    if (formData.PATIENT_ID && !/^[a-zA-Z0-9_-]+$/.test(formData.PATIENT_ID)) errs.PATIENT_ID = "Alphanumeric only";
     if (formData.AGE && (age <= 0 || age > 120)) errs.AGE = "Range: 1-120";
     if (formData.EDUCATION && (edu < 0 || edu > 100)) errs.EDUCATION = "Range: 0-100";
     if (formData.MMSE && (mmse < 0 || mmse > 30)) errs.MMSE = "Range: 0-30";
-    
+
     return errs;
   }, [formData]);
 
   const isFormValid =
-    formData.PATIENT_ID.trim() !== "" &&
     formData.SEX !== "" &&
     formData.AGE !== "" &&
     formData.EDUCATION !== "" &&
@@ -70,10 +64,6 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
 
   const getButtonDisabledReason = () => {
     if (isLoading) return 'Processing...';
-    if (patientIdWarning) return 'Patient ID already exists';
-    if (isCheckingPatientId) return 'Checking Patient ID...';
-    if (idCheckStatus !== 'accepted') return 'Click "check id" to verify Patient ID';
-    if (formData.PATIENT_ID.trim() === "") return 'Enter Patient ID';
     if (formData.SEX === "") return 'Select Sex';
     if (formData.AGE === "") return 'Enter Age';
     if (formData.CDR === "") return 'Select CDR';
@@ -85,37 +75,12 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
     return '';
   };
 
-  const checkPatientIdExists = async (id: string) => {
-    if (!id.trim() || patientId !== 'NEW') return;
-
-    setIsCheckingPatientId(true);
-    setIdCheckStatus('checking');
-    setPatientIdWarning('');
-
-    try {
-      const response = await api.getPatients();
-      const existingPatients = response || [];
-
-      if (existingPatients.includes(id.trim())) {
-        setPatientIdWarning(`Patient ID "${id.trim()}" already exists in the registry system.`);
-        setIdCheckStatus('exists');
-      } else {
-        setIdCheckStatus('accepted');
-      }
-    } catch (err) {
-      console.error('Failed to verify patient ID availability matrix:', err);
-      setIdCheckStatus('idle');
-    } finally {
-      setIsCheckingPatientId(false);
-    }
-  };
 
   const handleStartAnalysis = async () => {
     const fileToUse = uploadedFile || file;
     if (!fileToUse) return;
 
     if (patientId === 'NEW' && !isFormValid) return;
-    if (patientIdWarning) return;
 
     setError('');
     setIsLoading(true);
@@ -143,7 +108,7 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
         }
       } else {
         // Use predict endpoint for existing patients
-        result = await api.predictPatient(formData.PATIENT_ID.trim(), fileToUse);
+        result = await api.predictPatient(patientId, fileToUse);
       }
       setAnalysisResult(result);
     } catch (e: any) {
@@ -315,74 +280,22 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
-              {/* TARGET ID BLOCK FIELD */}
-              <div className="space-y-1.5 sm:col-span-2">
-                <div className="flex justify-between items-center px-0.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Assign Patient ID for Endpoint Path *</label>
-                  {fieldErrors.PATIENT_ID && <span className="text-[10px] text-red-500 font-bold">* {fieldErrors.PATIENT_ID}</span>}
-                </div>
-                <input
-                  type="text"
-                  className={`w-full h-12 bg-slate-50 border rounded-xl px-4 text-sm font-bold uppercase transition-all outline-none focus:bg-white focus:ring-4 ${
-                    fieldErrors.PATIENT_ID || patientIdWarning
-                    ? 'border-red-300 focus:border-red-500 focus:ring-red-500/10'
-                    : 'border-slate-200 focus:border-blue-500 focus:ring-blue-500/10'
-                  }`}
-                  placeholder="e.g. AAA038"
-                  value={formData.PATIENT_ID}
-                  onChange={(e) => {
-                    setFormData({...formData, PATIENT_ID: e.target.value});
-                    // Clear warning and status when user modifies the ID
-                    if (patientIdWarning) setPatientIdWarning('');
-                    setIdCheckStatus('idle');
-                  }}
-                />
-                {formData.PATIENT_ID.trim() && !fieldErrors.PATIENT_ID && (
-                  <button
-                    type="button"
-                    onClick={() => checkPatientIdExists(formData.PATIENT_ID)}
-                    disabled={isCheckingPatientId || idCheckStatus === 'exists' || idCheckStatus === 'accepted'}
-                    className={`text-[11px] font-bold px-1 mt-1.5 transition-colors underline ${
-                      idCheckStatus === 'idle' ? 'text-blue-600 hover:text-blue-700 cursor-pointer' :
-                      idCheckStatus === 'checking' ? 'text-yellow-600 cursor-wait' :
-                      idCheckStatus === 'exists' ? 'text-red-600 cursor-not-allowed' :
-                      'text-green-600 cursor-not-allowed'
-                    }`}
-                  >
-                    {idCheckStatus === 'idle' ? 'check id' :
-                     idCheckStatus === 'checking' ? 'checking' :
-                     idCheckStatus === 'exists' ? 'id exists' :
-                     'id accepted'}
-                  </button>
-                )}
-              </div>
-
-              {/* DYNAMIC COLLAPSIBLE WARNING ALERT BANNER */}
-              {patientIdWarning && (
-                <div className="sm:col-span-2 mt-1 mb-2 animate-in slide-in-from-top-2 duration-300">
-                  <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl">
-                    <div className="flex items-start gap-3">
-                      <div className="p-1.5 bg-amber-100 rounded-lg text-amber-700">
-                        <AlertTriangle className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="text-xs font-black text-amber-900 uppercase tracking-wider mb-0.5">Record Collision Detected</h3>
-                        <p className="text-xs text-amber-700 font-medium leading-relaxed">
-                          {patientIdWarning} If you would like to run a fresh scan configuration on this identity token, navigate to{' '}
-                          <button
-                            type="button"
-                            onClick={() => onBack && onBack()}
-                            className="font-black underline text-amber-900 hover:text-black transition-colors cursor-pointer"
-                          >
-                            Existing Records
-                          </button>
-                          {' '}instead.
-                        </p>
-                      </div>
+              {/* INFO BANNER - Patient ID auto-generated */}
+              <div className="sm:col-span-2 mb-2">
+                <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl">
+                  <div className="flex items-start gap-3">
+                    <div className="p-1.5 bg-blue-100 rounded-lg text-blue-700">
+                      <Brain className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-xs font-black text-blue-900 uppercase tracking-wider mb-0.5">Patient ID Auto-Assignment</h3>
+                      <p className="text-xs text-blue-700 font-medium leading-relaxed">
+                        A unique patient identifier will be automatically generated by the system after analysis completion. You will see the assigned ID on the results dashboard.
+                      </p>
                     </div>
                   </div>
                 </div>
-              )}
+              </div>
 
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-0.5">Sex Parameters (1:M, 2:F) *</label>
@@ -481,16 +394,16 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
             <div className="relative group">
               <Button
                 onClick={handleStartAnalysis}
-                disabled={isLoading || !isFormValid || !!patientIdWarning || isCheckingPatientId || idCheckStatus !== 'accepted'}
+                disabled={isLoading || !isFormValid}
                 className={`w-full mt-10 h-14 font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all text-sm tracking-wide ${
-                  isLoading || !isFormValid || patientIdWarning || isCheckingPatientId || idCheckStatus !== 'accepted'
+                  isLoading || !isFormValid
                   ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
                   : 'bg-blue-600 hover:bg-blue-700 text-white scale-100 active:scale-95'
                 }`}
               >
                 {isLoading ? '⏳ Connecting Array Parameters…' : '→ Start Analysis Pipeline'}
               </Button>
-              {(isLoading || !isFormValid || !!patientIdWarning || isCheckingPatientId || idCheckStatus !== 'accepted') && (
+              {(isLoading || !isFormValid) && (
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-slate-900 text-white text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-lg">
                   {getButtonDisabledReason()}
                   <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-900"></div>
