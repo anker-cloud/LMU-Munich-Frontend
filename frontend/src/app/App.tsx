@@ -41,21 +41,57 @@ export default function App() {
   };
 
   const handleAnalysisComplete = async (backendResult: any) => {
-    // If we have a patient_id, fetch the full patient record for consistent data structure
-    const patientId = backendResult?.patient_id;
+    // Strategy: Get the most recently registered patient from the list, then fetch their full record
+    // This avoids race conditions where the patient record might not be immediately available
 
-    if (patientId) {
-      try {
-        // Fetch full patient record to ensure consistent data structure
-        const fullRecord = await api.getPatientRecord(patientId);
+    // Helper function to wait
+    const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+    try {
+      let patientId = backendResult?.patient_id;
+      let retries = 3;
+
+      // If backend provided patient_id, try to fetch directly
+      if (patientId) {
+        console.log('Backend returned patient ID:', patientId);
+
+        // Retry fetching patient record (in case it's not immediately available)
+        while (retries > 0) {
+          try {
+            const fullRecord = await api.getPatientRecord(patientId);
+            setSessionData(fullRecord);
+            console.log('✅ Full patient record loaded successfully');
+            setIsProcessing(false);
+            return;
+          } catch (error) {
+            console.warn(`Attempt ${4 - retries}/3: Patient record not ready yet, retrying...`);
+            retries--;
+            if (retries > 0) {
+              await wait(1000); // Wait 1 second before retry
+            }
+          }
+        }
+      }
+
+      // Fallback: Get most recent patient from list
+      console.log('Fetching most recent patient from list...');
+      const patientList = await api.getPatients();
+
+      if (patientList && patientList.length > 0) {
+        const mostRecentPatientId = patientList[patientList.length - 1];
+        console.log('Most recent patient ID from list:', mostRecentPatientId);
+
+        const fullRecord = await api.getPatientRecord(mostRecentPatientId);
         setSessionData(fullRecord);
-      } catch (error) {
-        console.error("Failed to fetch full patient record:", error);
-        // Fallback to using the backend result directly
+        console.log('✅ Full patient record loaded from most recent patient');
+      } else {
+        // Last resort: use backend result directly
+        console.warn('⚠️ No patients in list, using backend result directly');
         setSessionData(backendResult);
       }
-    } else {
-      // No patient_id, use backend result as-is
+    } catch (error) {
+      console.error("❌ Failed to fetch patient record:", error);
+      // Last resort fallback: use backend result directly
       setSessionData(backendResult);
     }
 
