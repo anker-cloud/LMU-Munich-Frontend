@@ -310,10 +310,26 @@ export default function App() {
     setIsProcessing(true);
   };
 
-  const handleRunNewScan = (id: string) => {
-    // For existing patient - go to upload page without checking for existing predictions
-    setSessionData({ id });
-    setIsProcessing(true);
+  const handleRunNewScan = async (id: string) => {
+    // For existing patient - fetch their record first to get clinical data
+    try {
+      const patientRecord = await api.getPatientRecord(id);
+
+      // Set session data with the patient's existing clinical data
+      // This ensures the backend can find the tabular data when running new prediction
+      setSessionData({
+        id,
+        patient_id: id,
+        // Include tabular data from existing record if available
+        tabular: patientRecord?.prediction?.patient_info || patientRecord?.patient_info
+      });
+      setIsProcessing(true);
+    } catch (error) {
+      console.error("Failed to fetch patient record for new scan:", error);
+      // Fallback: proceed without pre-fetched data (backend will try to find it)
+      setSessionData({ id });
+      setIsProcessing(true);
+    }
   };
 
   if (!sessionData) {
