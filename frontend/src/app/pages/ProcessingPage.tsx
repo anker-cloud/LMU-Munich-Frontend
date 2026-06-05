@@ -504,13 +504,13 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
             
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  {progress < 100 ? (
+                  {!analysisResult ? (
                     <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
                   ) : (
                     <CheckCircle2 className="w-6 h-6 text-green-500 animate-in zoom-in" />
                   )}
                   <span className="font-bold text-slate-700 text-lg">
-                    {progress < 100 ? "Processing volumetric MRI coordinates..." : "Calculations matched successfully"}
+                    {!analysisResult ? "Processing volumetric MRI coordinates..." : "Calculations matched successfully"}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-slate-400 font-mono text-xs font-bold bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100">
@@ -524,16 +524,16 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
               <div className="flex justify-between items-start px-1 text-[10px] font-black uppercase tracking-widest transition-colors duration-500">
                 <span className={progress >= 0 ? 'text-blue-600' : 'text-slate-300'}>Ingestion</span>
                 <span className={progress > 35 ? 'text-blue-600' : 'text-slate-300'}>Feature Mapping</span>
-                <span className={progress === 100 ? 'text-green-600 animate-pulse' : 'text-slate-300'}>Complete</span>
+                <span className={analysisResult ? 'text-green-600 animate-pulse' : 'text-slate-300'}>Complete</span>
               </div>
             </div>
 
             <div className="flex justify-end pt-4 border-t border-slate-100">
               <Button
                 onClick={() => onComplete(analysisResult)}
-                disabled={progress < 100}
+                disabled={!analysisResult}
                 className={`h-14 px-10 text-sm font-bold transition-all shadow-lg flex items-center gap-2 rounded-xl tracking-wide ${
-                  progress === 100
+                  analysisResult
                   ? 'bg-blue-600 hover:bg-blue-700 text-white scale-100 hover:scale-105 active:scale-95'
                   : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
                 }`}
