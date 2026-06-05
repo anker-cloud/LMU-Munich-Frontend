@@ -24,6 +24,7 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
   const [analysisResult, setAnalysisResult] = useState<BackendResponse | null>(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [processingMessageIndex, setProcessingMessageIndex] = useState(0);
   const [uploadedFile, setUploadedFile] = useState<File | undefined>(file);
   const [isDragging, setIsDragging] = useState(false);
   const [fileError, setFileError] = useState('');
@@ -144,11 +145,16 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
     }
   };
 
+  // Progress bar effect - stops at 90% and waits for backend response
   useEffect(() => {
     if (step === 'analyzing' && !error && !analysisResult) {
       const timer = setInterval(() => {
         setProgress((prev) => {
-          if (prev >= 100) { clearInterval(timer); return 100; }
+          // Stop at 90% and wait for backend response
+          if (prev >= 90) {
+            clearInterval(timer);
+            return 90;
+          }
           return prev + 1;
         });
       }, 150);
@@ -163,6 +169,16 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
       setProgress(100);
     }
   }, [step, error, analysisResult]);
+
+  // Rotating processing messages effect
+  useEffect(() => {
+    if (step === 'analyzing' && !analysisResult && !error) {
+      const messageTimer = setInterval(() => {
+        setProcessingMessageIndex((prev) => (prev + 1) % 5);
+      }, 2000); // Change message every 2 seconds
+      return () => clearInterval(messageTimer);
+    }
+  }, [step, analysisResult, error]);
 
   // Auto-start analysis when adding scan to existing patient
   useEffect(() => {
@@ -487,6 +503,15 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
   // =========================================================================
   // VIEW SCREEN 3: PIPELINE EXECUTION PROGRESS LOADER (REAL-TIME UPDATE STATE)
   // =========================================================================
+
+  const processingMessages = [
+    "Processing volumetric MRI coordinates...",
+    "Extracting neural feature maps...",
+    "Running multi-model tensor computations...",
+    "Analyzing structural brain patterns...",
+    "Computing diagnostic probabilities..."
+  ];
+
   return (
     <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center p-6 md:p-12 animate-in fade-in duration-300">
       <div className="mb-10 text-center">
@@ -509,8 +534,8 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
                   ) : (
                     <CheckCircle2 className="w-6 h-6 text-green-500 animate-in zoom-in" />
                   )}
-                  <span className="font-bold text-slate-700 text-lg">
-                    {!analysisResult ? "Processing volumetric MRI coordinates..." : "Calculations matched successfully"}
+                  <span className="font-bold text-slate-700 text-lg transition-all duration-500">
+                    {!analysisResult ? processingMessages[processingMessageIndex] : "Calculations matched successfully"}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-slate-400 font-mono text-xs font-bold bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100">
