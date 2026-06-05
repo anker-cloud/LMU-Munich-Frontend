@@ -347,7 +347,7 @@ export default function App() {
   // Extract Clinical Metadata Variables - check patient_info first, then fall back to flat structure
   const patientInfoObj = extractObject(dataToDisplay, "patient_info");
   const ageValue = patientInfoObj?.age ?? extractPrimitive(dataToDisplay, "age");
-  const genderValue = patientInfoObj?.sex ?? extractPrimitive(dataToDisplay, "sex") || extractPrimitive(dataToDisplay, "gender");
+  const genderValue = patientInfoObj?.sex ?? (extractPrimitive(dataToDisplay, "sex") || extractPrimitive(dataToDisplay, "gender"));
   const educationValue = patientInfoObj?.education ?? extractPrimitive(dataToDisplay, "education");
   const cdrValue = patientInfoObj?.cdr ?? extractPrimitive(dataToDisplay, "cdr");
   const mmseValue = patientInfoObj?.mmse ?? extractPrimitive(dataToDisplay, "mmse");
