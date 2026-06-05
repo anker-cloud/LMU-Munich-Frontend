@@ -314,14 +314,32 @@ export default function App() {
     // For existing patient - fetch their record first to get clinical data
     try {
       const patientRecord = await api.getPatientRecord(id);
+      console.log('Fetched patient record:', patientRecord);
+
+      // Extract patient_info from the record
+      const patientInfo = patientRecord?.prediction?.patient_info || patientRecord?.patient_info;
+      console.log('Extracted patient_info:', patientInfo);
+
+      // Transform patient_info to tabular format (numeric values) that backend expects
+      let tabularData = null;
+      if (patientInfo) {
+        tabularData = {
+          SEX: patientInfo.sex === "Male" || patientInfo.sex === 1 ? 1 : 2,
+          AGE: Number(patientInfo.age) || 0,
+          EDUCATION: Number(patientInfo.education) || 0,
+          CDR: Number(patientInfo.cdr) || 0,
+          MMSE: Number(patientInfo.mmse) || 0,
+          APGEN1: Number(patientInfo.apgen1) || 0,
+          APGEN2: Number(patientInfo.apgen2) || 0
+        };
+        console.log('Transformed tabular data:', tabularData);
+      }
 
       // Set session data with the patient's existing clinical data
-      // This ensures the backend can find the tabular data when running new prediction
       setSessionData({
         id,
         patient_id: id,
-        // Include tabular data from existing record if available
-        tabular: patientRecord?.prediction?.patient_info || patientRecord?.patient_info
+        tabular: tabularData
       });
       setIsProcessing(true);
     } catch (error) {

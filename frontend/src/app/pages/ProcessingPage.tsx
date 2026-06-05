@@ -110,6 +110,8 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
       } else {
         // Use predict endpoint for existing patients
         // Pass existingTabularData if available to handle cases where backend can't find it
+        console.log('Existing patient predict - patientId:', patientId);
+        console.log('Existing tabular data:', existingTabularData);
         result = await api.predictPatient(patientId, fileToUse, existingTabularData);
       }
       setAnalysisResult(result);
