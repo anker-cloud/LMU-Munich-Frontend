@@ -36,6 +36,16 @@ import torchio as tio
 import numpy as np
 from torch.nn.functional import softmax
 
+# ── Fix for TabPFN compatibility with PyTorch 2.0+ ────────────────────────────
+# TabPFN 0.1.9 tries to import Optional from torch.nn.modules.transformer
+# which was removed in PyTorch 2.0+. We inject it here as a workaround.
+try:
+    from torch.nn.modules.transformer import Optional
+except ImportError:
+    from typing import Optional as TypingOptional
+    import torch.nn.modules.transformer as transformer_module
+    transformer_module.Optional = TypingOptional
+
 from net_utils.patient_id import register_patient, lookup_patient
 from net_utils.explainability import compute_shap, compute_gradcam, extract_mri_submodel
 

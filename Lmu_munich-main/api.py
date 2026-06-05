@@ -31,6 +31,19 @@ import shutil
 import tempfile
 from typing import Optional, List
 
+# ── Fix for TabPFN compatibility with PyTorch 2.0+ ────────────────────────────
+# TabPFN 0.1.9 tries to import Optional from torch.nn.modules.transformer
+# which was removed in PyTorch 2.0+. We inject it here as a workaround.
+try:
+    from torch.nn.modules.transformer import Optional as TorchOptional
+except ImportError:
+    try:
+        from typing import Optional as TypingOptional
+        import torch.nn.modules.transformer as transformer_module
+        transformer_module.Optional = TypingOptional
+    except Exception:
+        pass  # torch may not be imported yet, inference.py will handle it
+
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse

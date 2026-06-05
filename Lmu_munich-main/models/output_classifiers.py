@@ -3,6 +3,14 @@ import torch.cuda
 
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
+# ── Fix for TabPFN compatibility with PyTorch 2.0+ ────────────────────────────
+try:
+    from torch.nn.modules.transformer import Optional
+except ImportError:
+    from typing import Optional as TypingOptional
+    import torch.nn.modules.transformer as transformer_module
+    transformer_module.Optional = TypingOptional
+
 from models.dataloader import *
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from models.fusion_models.all_modalities_fusion import AllModalitiesFusionModel

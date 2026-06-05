@@ -3,6 +3,14 @@ See "TabPFN: A Transformer That Solves Small Tabular Classification Problems in 
 https://arxiv.org/abs/2207.01848
 """
 
+# ── Fix for TabPFN compatibility with PyTorch 2.0+ ────────────────────────────
+try:
+    from torch.nn.modules.transformer import Optional
+except ImportError:
+    from typing import Optional as TypingOptional
+    import torch.nn.modules.transformer as transformer_module
+    transformer_module.Optional = TypingOptional
+
 import tabpfn
 import torch
 from models.dataloader import *
