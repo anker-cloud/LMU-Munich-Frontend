@@ -79,4 +79,12 @@ export const api = {
     });
     return response.data;
   },
+
+  // Refresh presigned URLs for a patient's assets (if backend supports it)
+  // This attempts to fetch fresh presigned URLs by re-fetching the patient record
+  refreshPatientAssets: async (patientId: string) => {
+    // The backend should regenerate presigned URLs on each GET request
+    const response = await axios.get(`${BASE_URL}/patient/${patientId}`);
+    return response.data;
+  },
 };

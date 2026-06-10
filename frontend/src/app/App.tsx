@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Brain, Download, ArrowLeft, RefreshCw } from 'lucide-react';
 import { PatientInfo } from './components/PatientInfo';
 import { DiagnosisCard } from './components/DiagnosisCard';
@@ -27,6 +27,7 @@ export default function App() {
         // Check if patient has stored prediction results
         if (data.prediction || data.last_prediction) {
           // Has existing results - show dashboard directly
+          // Note: Presigned URLs may be stale; user can refresh using the refresh button
           setSessionData(data);
           setIsProcessing(false);
         } else {
@@ -304,10 +305,40 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
-  const handleAddScan = (id: string, file: File) => {
-    // For existing patient with new scan - go directly to processing/analyzing
-    setSessionData({ id, file, isAddingScan: true });
-    setIsProcessing(true);
+  const handleAddScan = async (id: string, file: File) => {
+    // For existing patient with new scan - fetch their record first to get clinical data
+    try {
+      const patientRecord = await api.getPatientRecord(id);
+      console.log('Fetched patient record for add scan:', patientRecord);
+
+      // Extract patient_info from the record
+      const patientInfo = patientRecord?.prediction?.patient_info || patientRecord?.patient_info;
+      console.log('Extracted patient_info for add scan:', patientInfo);
+
+      // Transform patient_info to tabular format (numeric values) that backend expects
+      let tabularData = null;
+      if (patientInfo) {
+        tabularData = {
+          SEX: patientInfo.sex === "Male" || patientInfo.sex === 1 ? 1 : 2,
+          AGE: Number(patientInfo.age) || 0,
+          EDUCATION: Number(patientInfo.education) || 0,
+          CDR: Number(patientInfo.cdr) || 0,
+          MMSE: Number(patientInfo.mmse) || 0,
+          APGEN1: Number(patientInfo.apgen1) || 0,
+          APGEN2: Number(patientInfo.apgen2) || 0
+        };
+        console.log('Transformed tabular data for add scan:', tabularData);
+      }
+
+      // Set session data with the patient's existing clinical data
+      setSessionData({ id, file, isAddingScan: true, tabular: tabularData });
+      setIsProcessing(true);
+    } catch (error) {
+      console.error("Failed to fetch patient record for add scan:", error);
+      // Fallback: proceed without pre-fetched data (backend will try to find it)
+      setSessionData({ id, file, isAddingScan: true });
+      setIsProcessing(true);
+    }
   };
 
   const handleRunNewScan = async (id: string) => {
@@ -450,8 +481,29 @@ export default function App() {
   const rawConfidence = probabilitiesMap && primaryDiag ? (probabilitiesMap[primaryDiag] ?? 0) : 0;
   const confidencePercentage = Math.round(rawConfidence * 100);
 
-  const gradcamObject = extractObject(dataToDisplay, "gradcam");
-  const shapObject = extractObject(dataToDisplay, "shap");
+  // Extract gradcam and shap objects
+  let gradcamObject = extractObject(dataToDisplay, "gradcam");
+  let shapObject = extractObject(dataToDisplay, "shap");
+
+  // NEW: Use direct file streaming endpoint (no presigned URLs!)
+  // Backend now serves files directly at: /patient/{patient_id}/file/{filename}
+  const BASE_URL = import.meta.env.DEV ? '/api' : 'http://35.159.51.22:8000';
+
+  let directHeatmapUrl: string | undefined;
+  let directShapUrl: string | undefined;
+
+  if (patientId && patientId !== "N/A") {
+    directHeatmapUrl = `${BASE_URL}/patient/${patientId}/file/${patientId}_heatmap.png`;
+    directShapUrl = `${BASE_URL}/patient/${patientId}/file/${patientId}_shap.png`;
+  }
+
+  // Use direct streaming URLs (bypasses presigned URL expiration issues)
+  if (directHeatmapUrl) {
+    gradcamObject = { ...gradcamObject, heatmap_png: directHeatmapUrl };
+  }
+  if (directShapUrl) {
+    shapObject = { ...shapObject, chart_path: directShapUrl };
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -475,6 +527,15 @@ export default function App() {
             </div>
             <div className="flex items-center gap-3">
               <button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-bold text-sm shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Refresh patient data and generate fresh image URLs"
+              >
+                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                {isRefreshing ? 'Refreshing...' : 'Refresh Data'}
+              </button>
+              <button
                 onClick={handleReset}
                 className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-all font-bold text-sm shadow-md"
               >
@@ -492,7 +553,7 @@ export default function App() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in duration-700">
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           <div className="lg:col-span-1">
             <PatientInfo 
@@ -525,7 +586,7 @@ export default function App() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <MRIHeatmap imageUrl={gradcamObject?.heatmap_png} />
+          <MRIHeatmap imageUrl={gradcamObject?.heatmap_png} onRefreshRequest={handleRefresh} />
           <AlternativeDiagnoses probabilities={probabilitiesMap} />
         </div>
 
