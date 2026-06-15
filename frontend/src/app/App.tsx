@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Brain, Download, ArrowLeft, RefreshCw } from 'lucide-react';
 import { PatientInfo } from './components/PatientInfo';
 import { DiagnosisCard } from './components/DiagnosisCard';
-import { MRIHeatmap } from './components/MRIHeatmap';
+import { MRIViewer3D } from './components/MRIViewer3D';
 import { ShapValues } from './components/ShapValues';
 import { AlternativeDiagnoses } from './components/AlternativeDiagnoses';
 import { IdentificationPage } from './pages/IdentificationPage';
@@ -342,43 +342,9 @@ export default function App() {
   };
 
   const handleRunNewScan = async (id: string) => {
-    // For existing patient - fetch their record first to get clinical data
-    try {
-      const patientRecord = await api.getPatientRecord(id);
-      console.log('Fetched patient record:', patientRecord);
-
-      // Extract patient_info from the record
-      const patientInfo = patientRecord?.prediction?.patient_info || patientRecord?.patient_info;
-      console.log('Extracted patient_info:', patientInfo);
-
-      // Transform patient_info to tabular format (numeric values) that backend expects
-      let tabularData = null;
-      if (patientInfo) {
-        tabularData = {
-          SEX: patientInfo.sex === "Male" || patientInfo.sex === 1 ? 1 : 2,
-          AGE: Number(patientInfo.age) || 0,
-          EDUCATION: Number(patientInfo.education) || 0,
-          CDR: Number(patientInfo.cdr) || 0,
-          MMSE: Number(patientInfo.mmse) || 0,
-          APGEN1: Number(patientInfo.apgen1) || 0,
-          APGEN2: Number(patientInfo.apgen2) || 0
-        };
-        console.log('Transformed tabular data:', tabularData);
-      }
-
-      // Set session data with the patient's existing clinical data
-      setSessionData({
-        id,
-        patient_id: id,
-        tabular: tabularData
-      });
-      setIsProcessing(true);
-    } catch (error) {
-      console.error("Failed to fetch patient record for new scan:", error);
-      // Fallback: proceed without pre-fetched data (backend will try to find it)
-      setSessionData({ id });
-      setIsProcessing(true);
-    }
+    // For existing patient - backend will retrieve their clinical data from S3
+    setSessionData({ id, patient_id: id });
+    setIsProcessing(true);
   };
 
   if (!sessionData) {
@@ -586,7 +552,12 @@ export default function App() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <MRIHeatmap imageUrl={gradcamObject?.heatmap_png} onRefreshRequest={handleRefresh} />
+          <MRIViewer3D
+            mriUrl={gradcamObject?.mri_nifti_url}
+            overlayUrl={gradcamObject?.overlay_nifti_url}
+            title="3D Brain with Grad-CAM"
+            onRefreshRequest={handleRefresh}
+          />
           <AlternativeDiagnoses probabilities={probabilitiesMap} />
         </div>
 

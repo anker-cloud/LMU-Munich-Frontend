@@ -34,6 +34,8 @@ export interface SHAPResult {
 export interface GradCAMResult {
   heatmap_path: string;
   heatmap_png?: string;
+  mri_nifti_url?: string;
+  overlay_nifti_url?: string;
 }
 
 export interface Probabilities {

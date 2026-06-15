@@ -17,17 +17,10 @@ export const api = {
   },
 
   // Predict for a patient - returns full patient info, diagnosis, SHAP, and Grad-CAM
-  predictPatient: async (patientId: string, file: File, tabularData?: any) => {
+  predictPatient: async (patientId: string, file: File) => {
     const formData = new FormData();
     formData.append('t1w_file', file);
     formData.append('explain', 'true');
-
-    // If tabular data is provided, include it in the request
-    // This allows the endpoint to work even if data isn't stored in S3
-    if (tabularData) {
-      console.log('Including tabular data in predict request:', tabularData);
-      formData.append('tabular', JSON.stringify(tabularData));
-    }
 
     const response = await axios.post(`${BASE_URL}/patient/${patientId}/predict`, formData, {
       headers: {
