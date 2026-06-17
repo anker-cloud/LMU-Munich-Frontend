@@ -1,36 +1,48 @@
 import axios from 'axios';
 
-// Use proxy in development to avoid CORS issues
+// Backend API base URL
 const BASE_URL = import.meta.env.DEV ? '/api' : 'http://35.159.51.22:8000';
 
 export const api = {
-  // Get list of all patient IDs
+  /**
+   * GET /patients
+   * Returns: { patients: ["AAA004", "AAA006", ...] }
+   */
   getPatients: async () => {
     const response = await axios.get(`${BASE_URL}/patients`);
     return response.data.patients;
   },
 
-  // Get patient record (includes last_prediction if available)
+  /**
+   * GET /patient/{patient_id}
+   * Returns: {
+   *   patient_id: string,
+   *   file_count: number,
+   *   files: [...],
+   *   prediction: {
+   *     model_used: string,
+   *     prediction: string,
+   *     probabilities: {...},
+   *     patient_info: { age, sex, education, cdr, mmse, apgen1, apgen2 },
+   *     shap: {...},
+   *     gradcam: {...}
+   *   }
+   * }
+   */
   getPatientRecord: async (patientId: string) => {
     const response = await axios.get(`${BASE_URL}/patient/${patientId}`);
     return response.data;
   },
 
-  // Predict for a patient - returns full patient info, diagnosis, SHAP, and Grad-CAM
-  predictPatient: async (patientId: string, file: File) => {
-    const formData = new FormData();
-    formData.append('t1w_file', file);
-    formData.append('explain', 'true');
-
-    const response = await axios.post(`${BASE_URL}/patient/${patientId}/predict`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    return response.data;
-  },
-
-  // Register new patient and predict - returns full patient info, diagnosis, SHAP, and Grad-CAM
+  /**
+   * POST /patient/register-and-predict
+   * For NEW patients
+   * Body (FormData):
+   *   - tabular: JSON string with { SEX, AGE, EDUCATION, CDR, MMSE, APGEN1, APGEN2 }
+   *   - t1w_file: File (MRI scan)
+   *   - explain: "true" | "false"
+   * Returns: Same structure as prediction object above
+   */
   registerAndPredict: async (patientData: {
     SEX: string;
     AGE: string;
@@ -42,7 +54,7 @@ export const api = {
   }, file: File) => {
     const formData = new FormData();
 
-    // Backend expects a JSON string in 'tabular' field with numeric values
+    // Backend expects numeric values in JSON string
     const tabularData = {
       SEX: Number(patientData.SEX),
       AGE: Number(patientData.AGE),
@@ -53,31 +65,65 @@ export const api = {
       APGEN2: Number(patientData.APGEN2)
     };
 
-    console.log('Tabular data being sent:', tabularData);
-    console.log('File being uploaded:', file.name, file.size, file.type);
-
     formData.append('tabular', JSON.stringify(tabularData));
     formData.append('t1w_file', file);
     formData.append('explain', 'true');
 
-    console.log('FormData contents:');
-    for (let [key, value] of formData.entries()) {
-      console.log(key, value);
-    }
-
     const response = await axios.post(`${BASE_URL}/patient/register-and-predict`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
+
     return response.data;
   },
 
-  // Refresh presigned URLs for a patient's assets (if backend supports it)
-  // This attempts to fetch fresh presigned URLs by re-fetching the patient record
-  refreshPatientAssets: async (patientId: string) => {
-    // The backend should regenerate presigned URLs on each GET request
-    const response = await axios.get(`${BASE_URL}/patient/${patientId}`);
+  /**
+   * POST /patient/{patient_id}/predict
+   * For EXISTING patients with new scan
+   * Body (FormData):
+   *   - t1w_file: File (new MRI scan)
+   *   - explain: "true" | "false"
+   * Note: Backend fetches tabular data from S3 for this patient
+   * Returns: Same structure as prediction object
+   */
+  predictExistingPatient: async (patientId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('t1w_file', file);
+    formData.append('explain', 'true');
+
+    const response = await axios.post(`${BASE_URL}/patient/${patientId}/predict`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+
+    return response.data;
+  },
+
+  /**
+   * POST /patient/register-and-predict (workaround for existing patients)
+   * Used when we already have the patient's tabular data and want to avoid S3 lookup issues
+   * Body (FormData):
+   *   - tabular: JSON string with { SEX, AGE, EDUCATION, CDR, MMSE, APGEN1, APGEN2 }
+   *   - t1w_file: File (MRI scan)
+   *   - explain: "true" | "false"
+   * Returns: Same structure as prediction object
+   */
+  predictWithTabularData: async (tabularData: {
+    SEX: number;
+    AGE: number;
+    EDUCATION: number;
+    CDR: number;
+    MMSE: number;
+    APGEN1: number;
+    APGEN2: number;
+  }, file: File) => {
+    const formData = new FormData();
+    formData.append('tabular', JSON.stringify(tabularData));
+    formData.append('t1w_file', file);
+    formData.append('explain', 'true');
+
+    const response = await axios.post(`${BASE_URL}/patient/register-and-predict`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+
     return response.data;
   },
 };

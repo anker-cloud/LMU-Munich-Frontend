@@ -9,9 +9,10 @@ interface ShapData {
 
 interface ShapValuesProps {
   shap?: SHAPResult;
+  onImageLoad?: () => void;
 }
 
-export function ShapValues({ shap }: ShapValuesProps) {
+export function ShapValues({ shap, onImageLoad }: ShapValuesProps) {
   const shapData: ShapData[] = shap?.features
     ? shap.features.map(f => ({
         feature: f.feature,
@@ -36,14 +37,23 @@ export function ShapValues({ shap }: ShapValuesProps) {
           <p className="text-sm text-gray-500">Values explaining the mathematical contribution of each feature to the final classification logic.</p>
         </div>
         {shap.chart_path && (
-          <a 
-            href={shap.chart_path} 
-            target="_blank" 
-            rel="noreferrer"
-            className="inline-flex items-center gap-2 text-xs font-bold text-blue-600 bg-blue-50 px-3 py-2 rounded-lg hover:bg-blue-100 transition-colors"
-          >
-            <FileText className="w-3.5 h-3.5" /> View High-Res S3 Chart File
-          </a>
+          <>
+            <img
+              src={shap.chart_path}
+              alt="SHAP Chart"
+              className="hidden"
+              onLoad={() => onImageLoad?.()}
+              onError={() => onImageLoad?.()}
+            />
+            <a
+              href={shap.chart_path}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 text-xs font-bold text-blue-600 bg-blue-50 px-3 py-2 rounded-lg hover:bg-blue-100 transition-colors"
+            >
+              <FileText className="w-3.5 h-3.5" /> View High-Res S3 Chart File
+            </a>
+          </>
         )}
       </div>
 

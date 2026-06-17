@@ -417,8 +417,258 @@ docker-compose up -d
 
 ---
 
+---
+
+## 3. PDF Download Report Improvements (June 17, 2026)
+
+### Problem That Was Fixed
+
+The PDF download functionality had three critical issues:
+1. **Missing multiplanar MRI view** - The PDF didn't include the 3D brain slice views (axial, sagittal, coronal)
+2. **Content sliced across page breaks** - Text, images, and components were being cut in the middle across page boundaries
+3. **Poor page layout control** - One large HTML document converted to image, then mechanically sliced across pages
+
+### The Solution: Component-Based PDF Generation
+
+Completely rewrote the PDF generation to build it component-by-component using jsPDF API directly, instead of HTML→canvas→PDF approach.
+
+### Files Changed
+
+#### **App.tsx** - handleDownloadReport function
+**Lines**: 200-627
+
+**Key Changes**:
+1. **Removed HTML template approach** - No longer renders full HTML in hidden iframe
+2. **Added component-based building** - Each section added individually to PDF with boundary checks
+3. **Added MRI canvas capture** - Captures the Niivue canvas showing multiplanar slices
+4. **Smart page break logic** - Checks available space before adding each component
+
+**New Architecture**:
+```typescript
+const handleDownloadReport = async () => {
+  // 1. Initialize jsPDF
+  const pdf = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+    compress: true
+  });
+
+  // 2. Capture MRI canvas showing multiplanar slices
+  const mriCanvas = document.querySelector('canvas') as HTMLCanvasElement;
+  const mriImageData = mriCanvas.toDataURL('image/png', 1.0);
+
+  // 3. Helper functions with boundary checking
+  const addText = (text, fontSize, isBold, color) => {
+    // Check if text fits on current page
+    if (yPos + textHeight > pageHeight - margin) {
+      pdf.addPage();  // Start new page if needed
+      yPos = margin;
+    }
+    pdf.text(lines, margin, yPos);
+  };
+
+  const addImage = (imgData, maxHeight, caption, darkBg) => {
+    // Check if image + caption fit on current page
+    if (yPos + totalHeight > pageHeight - margin) {
+      pdf.addPage();
+      yPos = margin;
+    }
+    pdf.addImage(imgData, 'PNG', xPos, yPos, imgWidth, imgHeight);
+  };
+
+  // 4. Build PDF page by page
+  // Page 1: Header + Patient Info + Diagnosis
+  // Page 2: Attention Heatmap + Multiplanar MRI Slices
+  // Page 3: Differential Diagnoses + SHAP Values
+  // Page 4: Clinical Disclaimer + Footer
+
+  // 5. Download
+  pdf.save(`NeuroAI_Report_${patientId}_${date}.pdf`);
+};
+```
+
+**Before (HTML approach)**:
+- 400+ lines of HTML template string
+- iframe rendering with html2canvas
+- One large canvas mechanically sliced across pages
+- No control over component boundaries
+
+**After (Component approach)**:
+- Direct jsPDF API calls
+- Each component added individually
+- Smart page break checks before each addition
+- Components never split across pages
+
+### PDF Structure
+
+**Page 1 - Header & Clinical Profile**:
+```
+┌─────────────────────────────┐
+│ NeuroAI Diagnostics Header  │
+│ (Blue banner)               │
+├─────────────────────────────┤
+│ Metadata Bar                │
+│ (Patient ID, Date, Model)   │
+├─────────────────────────────┤
+│ Patient Information Grid    │
+│ (Age, Sex, Education, etc.) │
+├─────────────────────────────┤
+│ Primary Diagnosis Box       │
+│ (Blue gradient)             │
+├─────────────────────────────┤
+│ Diagnostic Explainability   │
+│ (Purple gradient)           │
+└─────────────────────────────┘
+```
+
+**Page 2 - Brain Visualizations**:
+```
+┌─────────────────────────────┐
+│ MRI T1w with Attention      │
+│ Heatmap                     │
+│ [PNG Image with dark bg]    │
+├─────────────────────────────┤
+│ MRI T1-weighted Multiplanar │
+│ Slices                      │
+│ [Canvas capture: Axial,     │
+│  Sagittal, Coronal views]   │
+└─────────────────────────────┘
+```
+
+**Page 3 - Analysis Results**:
+```
+┌─────────────────────────────┐
+│ Differential Diagnoses      │
+│ ┌─────────────────┬────┐   │
+│ │ VASC            │ 40%│   │
+│ │ Mixed AD/Vasc   │ 26%│   │
+│ │ Alzheimer's     │ 25%│   │
+│ └─────────────────┴────┘   │
+├─────────────────────────────┤
+│ SHAP Values                 │
+│ (Feature importance list)   │
+│ [SHAP chart image]          │
+└─────────────────────────────┘
+```
+
+**Page 4 - Disclaimer**:
+```
+┌─────────────────────────────┐
+│ Clinical Protocol           │
+│ Considerations              │
+│ (Warning box)               │
+├─────────────────────────────┤
+│ Medical Disclaimer Footer   │
+└─────────────────────────────┘
+```
+
+### Technical Improvements
+
+**1. MRI Capture**:
+```typescript
+// Capture the Niivue canvas showing brain slices
+const mriCanvas = document.querySelector('canvas') as HTMLCanvasElement;
+if (mriCanvas) {
+  mriImageData = mriCanvas.toDataURL('image/png', 1.0);
+}
+```
+
+**2. Smart Boundary Checking**:
+```typescript
+const addSectionHeader = (title: string) => {
+  // Never add header at bottom of page alone
+  if (yPos > pageHeight - margin - 20) {
+    pdf.addPage();
+    yPos = margin;
+  }
+  // Add header
+};
+```
+
+**3. Component Grouping**:
+```typescript
+// Patient info grid - all items stay together
+patientInfoData.forEach(([left, right]) => {
+  if (yPos > pageHeight - margin - 10) {
+    pdf.addPage();
+    yPos = margin;
+  }
+  // Add grid row
+});
+```
+
+**4. Fixed Ternary Operator Issues**:
+```typescript
+// Before (caused Babel parsing errors):
+pdf.setFillColor(isHighlight ? 219, 234, 254 : 248, 250, 252);
+
+// After:
+if (isHighlight) {
+  pdf.setFillColor(219, 234, 254);
+} else {
+  pdf.setFillColor(248, 250, 252);
+}
+```
+
+### Error Handling & Debugging
+
+Added comprehensive logging:
+```typescript
+console.log('[PDF] Starting PDF generation...');
+console.log('[PDF] Libraries loaded');
+console.log('[PDF] Initializing jsPDF...');
+console.log('[PDF] Starting Page 1...');
+console.log('[PDF] Starting Page 2...');
+console.log('[PDF] Saving PDF...');
+console.log('[PDF] PDF saved successfully:', filename);
+```
+
+Enhanced error reporting:
+```typescript
+catch (error) {
+  console.error('Failed to generate PDF:', error);
+  console.error('Error stack:', error.stack);
+  console.error('Error message:', error.message);
+  alert(`Failed to generate PDF report. Error: ${error.message}`);
+}
+```
+
+### Benefits
+
+**User Experience**:
+- ✅ **Complete report** - Includes all dashboard visualizations
+- ✅ **Professional layout** - No content cut across pages
+- ✅ **Better readability** - Logical page breaks, proper spacing
+- ✅ **True to dashboard** - Matches what's visible on screen
+
+**Technical**:
+- ✅ **Component isolation** - Each section independent
+- ✅ **Predictable layout** - Known page structure
+- ✅ **Better maintainability** - Easy to add/remove sections
+- ✅ **Proper error handling** - Detailed logging for debugging
+
+**Performance**:
+- ✅ **Faster generation** - No iframe/HTML rendering overhead
+- ✅ **Smaller file size** - Direct image embedding, compression enabled
+- ✅ **No DOM manipulation** - No page shift or flicker
+
+### Testing
+
+1. ✅ PDF generates without errors
+2. ✅ All 4 pages included
+3. ✅ Multiplanar MRI view visible on page 2
+4. ✅ No content sliced across page boundaries
+5. ✅ Section headers stay with their content
+6. ✅ Images properly sized and centered
+7. ✅ Text wraps correctly
+8. ✅ File downloads successfully
+
+---
+
 **Status**: ✅ Complete and tested  
 **Docker**: ✅ Container rebuilt with niivue  
 **Architecture**: ✅ Proper (backend manages its data)  
+**PDF Generation**: ✅ Component-based with smart page breaks  
 **Ready**: ✅ Operational at http://localhost:5173  
-**Date**: June 15, 2026
+**Last Updated**: June 17, 2026

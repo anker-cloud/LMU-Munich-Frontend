@@ -7,79 +7,234 @@ interface MRIViewer3DProps {
   overlayUrl?: string;
   title?: string;
   onRefreshRequest?: () => void;
+  onLoadComplete?: () => void;
 }
 
 export function MRIViewer3D({
   mriUrl,
   overlayUrl,
-  title = "MRI 3D Brain Visualization",
-  onRefreshRequest
+  title = "3D Brain with Grad-CAM",
+  onRefreshRequest,
+  onLoadComplete
 }: MRIViewer3DProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const nvRef = useRef<Niivue | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [viewMode, setViewMode] = useState<'3d' | 'slices'>('slices');
+  const [showOverlay, setShowOverlay] = useState(true);  // Backend: overlay toggle
 
   useEffect(() => {
-    if (!canvasRef.current || !mriUrl) return;
+    if (!canvasRef.current || !mriUrl) {
+      console.log('[MRIViewer3D] Skipping initialization - canvas or URL missing');
+      return;
+    }
+
+    // Guard against rapid re-mounting
+    if (nvRef.current) {
+      console.log('[MRIViewer3D] Niivue instance already exists, cleaning up first');
+      try {
+        nvRef.current.destroy();
+      } catch (e) {
+        console.log('[MRIViewer3D] Error destroying old instance:', e.message);
+      }
+      nvRef.current = null;
+    }
+
+    console.log('[MRIViewer3D] ========================================');
+    console.log('[MRIViewer3D] Initializing with:');
+    console.log('[MRIViewer3D]   MRI URL:', mriUrl);
+    console.log('[MRIViewer3D]   Overlay URL:', overlayUrl);
+    console.log('[MRIViewer3D] ========================================');
 
     setLoading(true);
     setError(false);
 
     const nv = new Niivue({
-      show3Dcrosshair: false,
-      backColor: [0.1, 0.1, 0.1, 1],
-      crosshairColor: [1, 0, 0, 1],
+      show3Dcrosshair: true,  // Backend recommends showing crosshair
+      backColor: [0, 0, 0, 1],
       isOrientCube: true,
-      meshXRay: 0.3,
+      isRadiologicalConvention: false,  // Use neurological convention
+      logging: false,  // Reduce console noise
+      isColorbar: true,  // Backend: show activation scale for GradCAM
     });
 
-    nv.attachToCanvas(canvasRef.current);
+    // Attach to canvas and verify it worked
+    try {
+      nv.attachToCanvas(canvasRef.current);
 
-    // Set to 3D volume rendering mode
-    nv.setSliceType(nv.sliceTypeRender);
-
-    // Prepare volumes
-    const volumes: any[] = [
-      {
-        url: mriUrl,
-        colormap: 'gray',
-        opacity: 1,
-        cal_min: 0,
-        cal_max: 255,
+      // Wrap the resize listener to add null safety
+      const originalResizeListener = nv.resizeListener?.bind(nv);
+      if (originalResizeListener) {
+        nv.resizeListener = () => {
+          try {
+            if (canvasRef.current && nv.gl) {
+              originalResizeListener();
+            }
+          } catch (err) {
+            // Silently ignore resize errors when canvas is gone
+          }
+        };
       }
-    ];
-
-    // Add heatmap overlay if provided
-    if (overlayUrl) {
-      volumes.push({
-        url: overlayUrl,
-        colormap: 'hot',
-        opacity: 0.6,
-        cal_min: 0,
-        cal_max: 1,
-      });
+    } catch (err) {
+      console.error('[MRIViewer3D] Failed to attach to canvas:', err);
+      setError(true);
+      setLoading(false);
+      return;
     }
 
-    // Load volumes
-    nv.loadVolumes(volumes)
-      .then(() => {
+    // Enable mouse wheel zoom (scroll to zoom in 3D mode)
+    nv.opts.dragMode = nv.dragModes.pan;
+
+    // Helper function to try loading MRI with fallback URLs
+    const tryLoadMriAndOverlay = async (primaryMriUrl: string, overlayUrl?: string) => {
+      // Generate fallback URLs based on the primary URL
+      const patientId = primaryMriUrl.match(/patient\/([^/]+)\//)?.[1];
+      const cacheBust = primaryMriUrl.match(/\?t=\d+/)?.[0] || '';
+
+      const fallbackUrls: string[] = [];
+      if (patientId) {
+        const base = primaryMriUrl.split('/file/')[0];
+        // Try: flair → t1w (skip preprocessed - some are corrupted)
+        if (!primaryMriUrl.includes('flair')) fallbackUrls.push(`${base}/file/${patientId}_flair.nii.gz${cacheBust}`);
+        if (!primaryMriUrl.includes('t1w')) fallbackUrls.push(`${base}/file/${patientId}_t1w.nii.gz${cacheBust}`);
+      }
+
+      const urlsToTry = [primaryMriUrl, ...fallbackUrls];
+
+      for (const url of urlsToTry) {
+        try {
+          console.log(`[MRIViewer3D] Trying to load MRI from: ${url}`);
+
+          const isFlair = url.toLowerCase().includes('flair');
+          const isPreprocessed = url.toLowerCase().includes('preprocessed');
+
+          // Build volume list - base MRI + overlay (if available)
+          const volumes = [{
+            url: url,
+            colormap: 'gray',
+            opacity: 1.0,
+            cal_min: isPreprocessed ? 0 : (isFlair ? 0 : 5),
+            cal_max: isPreprocessed ? 1 : (isFlair ? 250 : 180),
+          }];
+
+          // Add overlay to the volume list (backend recommendation: load both together)
+          if (overlayUrl) {
+            volumes.push({
+              url: overlayUrl,
+              colormap: 'hot',
+              opacity: 0.5,      // Revert to original opacity
+              cal_min: 0.4,      // Higher threshold - only show strong activations
+              cal_max: 1.0,
+            });
+            console.log(`[MRIViewer3D] Loading with overlay: ${overlayUrl}`);
+          }
+
+          // Load all volumes at once (Niivue handles ordering internally)
+          await nv.loadVolumes(volumes);
+
+          console.log(`[MRIViewer3D] ✓✓✓ Successfully loaded ${volumes.length} volume(s) from: ${url}`);
+          return url; // Success!
+        } catch (err: any) {
+          console.log(`[MRIViewer3D] ✗ Failed to load from ${url}`);
+          console.log(`[MRIViewer3D] Error: ${err?.message || err}`);
+        }
+      }
+
+      // If all URLs failed, throw error
+      console.error('[MRIViewer3D] ❌ ALL URLS FAILED. Tried:', urlsToTry);
+      throw new Error(`Failed to load MRI from any URL. Tried: ${urlsToTry.join(', ')}`);
+    };
+
+    // Try loading base MRI (and overlay if available) with fallbacks
+    tryLoadMriAndOverlay(mriUrl, overlayUrl)
+      .then(async () => {
+        console.log('[MRIViewer3D] ✓ Volumes loaded successfully');
+        console.log('[MRIViewer3D] Total volumes:', nv.volumes.length);
+
+        // Log each volume
+        nv.volumes.forEach((vol, idx) => {
+          console.log(`[MRIViewer3D]   Volume ${idx}:`, {
+            dims: vol.dims,
+            colormap: vol.colormap,
+            opacity: vol.opacity,
+            cal_min: vol.cal_min,
+            cal_max: vol.cal_max,
+            global_min: vol.global_min,
+            global_max: vol.global_max,
+          });
+        });
+
+        // Auto-adjust contrast for better visibility of base volume
+        const baseVol = nv.volumes[0];
+        if (baseVol && baseVol.global_max > 0) {
+          baseVol.cal_min = baseVol.robust_min || baseVol.global_min;
+          baseVol.cal_max = baseVol.robust_max || baseVol.global_max;
+          console.log('[MRIViewer3D] Auto-calibrated base volume:', baseVol.cal_min, 'to', baseVol.cal_max);
+        }
+
+        // Check overlay if it was loaded
+        if (nv.volumes.length > 1) {
+          const baseVol = nv.volumes[0];
+          const overlayVol = nv.volumes[1];
+
+          console.log('[MRIViewer3D] ========== OVERLAY DIAGNOSTICS ==========');
+          console.log('[MRIViewer3D] Base volume dims:', baseVol?.dims);
+          console.log('[MRIViewer3D] Overlay volume dims:', overlayVol?.dims);
+
+          // Check if overlay has valid data
+          if (!overlayVol || !overlayVol.dims) {
+            console.error('[MRIViewer3D] ❌ OVERLAY HAS NO DIMENSIONS - File may be corrupted!');
+          } else if (JSON.stringify(overlayVol.dims) !== JSON.stringify(baseVol.dims)) {
+            console.error('[MRIViewer3D] ❌ DIMENSION MISMATCH!');
+            console.error('[MRIViewer3D]   Base:', baseVol.dims);
+            console.error('[MRIViewer3D]   Overlay:', overlayVol.dims);
+          } else {
+            console.log('[MRIViewer3D] ✅ Overlay dimensions match base MRI - alignment correct!');
+            console.log('[MRIViewer3D] ✅ Overlay data range:', overlayVol.global_min, 'to', overlayVol.global_max);
+          }
+
+          console.log('[MRIViewer3D] ==========================================');
+
+          // Force update to ensure settings are applied
+          nv.updateGLVolume();
+        }
+
+        // Start with slice view by default
+        nv.setSliceType(nv.sliceTypeMultiplanar);
+
         setLoading(false);
-        // Set default view angle for nice brain perspective
-        nv.setClipPlane([0, 0, 0]);
-        nv.setRenderAzimuthElevation(120, 10);
+        onLoadComplete?.();
       })
       .catch((err) => {
-        console.error('Failed to load NIfTI volumes:', err);
+        console.error('[MRIViewer3D] ✗ Failed to load NIfTI volumes:', err);
         setError(true);
         setLoading(false);
+        onLoadComplete?.(); // Still notify even on error
       });
 
     nvRef.current = nv;
 
     return () => {
+      // Cleanup: safely destroy Niivue instance
       if (nvRef.current) {
-        nvRef.current.destroy();
+        try {
+          // Check if canvas still exists before destroying
+          const canvas = canvasRef.current;
+          if (canvas && nvRef.current.gl) {
+            // Canvas is still attached, safe to destroy
+            if (typeof nvRef.current.destroy === 'function') {
+              nvRef.current.destroy();
+            }
+          } else {
+            // Canvas already unmounted, just clear the reference
+            console.log('[MRIViewer3D] Cleanup: Canvas already unmounted, skipping destroy');
+          }
+        } catch (err) {
+          // Ignore cleanup errors (canvas may already be unmounted)
+          console.log('[MRIViewer3D] Cleanup error (safe to ignore):', err.message);
+        }
+        nvRef.current = null;
       }
     };
   }, [mriUrl, overlayUrl]);
@@ -90,9 +245,47 @@ export function MRIViewer3D({
         <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
           <Eye className="w-4 h-4 text-blue-500" /> {title}
         </h3>
-        <span className="text-[10px] bg-slate-100 text-slate-500 font-mono px-2 py-0.5 rounded uppercase tracking-wider">
-          3D Volume
-        </span>
+        <div className="flex items-center gap-2">
+          {/* Overlay toggle button */}
+          {overlayUrl && (
+            <button
+              onClick={() => {
+                if (!nvRef.current || !nvRef.current.volumes[1]) return;
+                const newShowOverlay = !showOverlay;
+                nvRef.current.volumes[1].opacity = newShowOverlay ? 0.5 : 0;  // Revert to 0.5
+                nvRef.current.updateGLVolume();
+                setShowOverlay(newShowOverlay);
+              }}
+              className={`text-[10px] px-3 py-1 rounded transition-colors font-bold uppercase tracking-wider ${
+                showOverlay
+                  ? 'bg-orange-600 text-white hover:bg-orange-700'
+                  : 'bg-slate-300 text-slate-600 hover:bg-slate-400'
+              }`}
+            >
+              {showOverlay ? 'Hide Heatmap' : 'Show Heatmap'}
+            </button>
+          )}
+          <button
+            onClick={() => {
+              const newMode = viewMode === '3d' ? 'slices' : '3d';
+              setViewMode(newMode);
+              if (nvRef.current) {
+                if (newMode === 'slices') {
+                  nvRef.current.setSliceType(nvRef.current.sliceTypeMultiplanar);
+                } else {
+                  nvRef.current.setSliceType(nvRef.current.sliceTypeRender);
+                  nvRef.current.setRenderAzimuthElevation(120, 10);
+                }
+              }
+            }}
+            className="text-[10px] bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition-colors font-bold uppercase tracking-wider"
+          >
+            {viewMode === '3d' ? 'Show Slices' : 'Show 3D'}
+          </button>
+          <span className="text-[10px] bg-slate-100 text-slate-500 font-mono px-2 py-0.5 rounded uppercase tracking-wider">
+            {viewMode === '3d' ? '3D Volume' : 'Slices'}
+          </span>
+        </div>
       </div>
 
       <div className="relative bg-slate-900 rounded-lg overflow-hidden flex-1 flex items-center justify-center min-h-[400px]">
@@ -132,14 +325,29 @@ export function MRIViewer3D({
         )}
       </div>
 
-      <div className="mt-4 flex items-center justify-between border-t pt-3 border-slate-50">
-        <div className="flex items-center gap-2">
-          <div className="w-24 h-2.5 bg-gradient-to-r from-blue-500 via-yellow-400 to-red-600 rounded" />
-          <span className="text-[10px] font-bold text-slate-400 uppercase">Attention Intensity</span>
+      <div className="mt-4 flex flex-col gap-2 border-t pt-3 border-slate-50">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-32 h-3 bg-gradient-to-r from-orange-400 via-red-500 to-red-800 rounded" />
+            <span className="text-[10px] font-bold text-slate-400 uppercase">Low → Medium → High Severity</span>
+          </div>
+          <div className="text-[10px] text-slate-400">
+            {viewMode === '3d' ? (
+              <p>🖱️ Drag to rotate • Scroll to zoom • Right-click to pan</p>
+            ) : (
+              <p>🖱️ Scroll to navigate slices • Drag to pan</p>
+            )}
+          </div>
         </div>
-        <div className="text-[10px] text-slate-400">
-          <p>🖱️ Drag to rotate • Scroll to zoom • Right-click to pan</p>
+        <div className="text-[10px] text-slate-500 italic">
+          <p>💡 Slice view shows heatmap directly ON affected brain regions. Use 3D for overview.</p>
         </div>
+        {overlayUrl && nvRef.current?.volumes.length === 2 && !nvRef.current.volumes[1]?.dims && (
+          <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-[10px] text-amber-800">
+            <p className="font-bold">⚠️ Overlay dimensions unavailable</p>
+            <p className="mt-1">Backend GradCAM overlay file may be corrupted. Using 2D heatmap fallback.</p>
+          </div>
+        )}
       </div>
     </div>
   );

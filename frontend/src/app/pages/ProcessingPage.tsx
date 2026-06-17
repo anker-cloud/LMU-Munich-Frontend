@@ -109,9 +109,16 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
         }
       } else {
         // Use predict endpoint for existing patients
-        // Backend will retrieve patient data from S3
         console.log('Existing patient predict - patientId:', patientId);
-        result = await api.predictPatient(patientId, fileToUse);
+        console.log('Existing tabular data:', existingTabularData);
+
+        if (existingTabularData) {
+          // If we have tabular data, use it directly (avoids S3 lookup issues)
+          result = await api.predictWithTabularData(existingTabularData, fileToUse);
+        } else {
+          // Otherwise let backend try to fetch from S3
+          result = await api.predictExistingPatient(patientId, fileToUse);
+        }
       }
       setAnalysisResult(result);
     } catch (e: any) {
@@ -219,7 +226,7 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
             >
               <UploadCloud className="w-12 h-12 mb-3 text-slate-400 mx-auto" />
               <p className="text-base font-bold text-slate-700">Click or drag to upload</p>
-              <p className="text-xs text-slate-400 uppercase tracking-widest mt-1">NIfTI or ZIP (DICOM)</p>
+              <p className="text-xs text-slate-400 uppercase tracking-widest mt-1">NIfTI or ZIP</p>
               {uploadedFile && (
                 <div 
                   title={uploadedFile.name}

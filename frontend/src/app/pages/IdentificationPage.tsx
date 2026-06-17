@@ -118,7 +118,7 @@ export function IdentificationPage({ onProceed, onAddScan, onRunNewScan }: Ident
             {/* Fine-tuned vertical padding to md:py-10 for proportional spacing */}
             <CardContent className="p-6 py-9 md:py-10 md:px-8 flex flex-col items-center text-center space-y-5 flex-1 justify-center">
               <History className="w-9 h-9 text-slate-600" />
-              <h2 className="text-lg font-bold text-slate-900">Existing Records</h2>
+              <h2 className="text-lg font-bold text-slate-900">Existing Patient Records</h2>
               
               <div className="w-full space-y-4 pt-2">
                 <Select onValueChange={setSelectedId} value={selectedId} disabled={isLoading || !!registryError}>
