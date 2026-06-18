@@ -54,9 +54,15 @@ export function AlternativeDiagnoses({ probabilities }: AlternativeDiagnosesProp
       <h3 className="text-lg font-semibold text-gray-900 mb-4">
         Differential Diagnoses
       </h3>
-      <div className="space-y-4">
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gap: '12px',
+        }}
+      >
         {diagnoses.map((diagnosis, index) => (
-          <div key={index}>
+          <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-700">{diagnosis.name}</span>
               <span className="text-sm font-semibold text-gray-900">{diagnosis.probability}%</span>
@@ -75,13 +81,6 @@ export function AlternativeDiagnoses({ probabilities }: AlternativeDiagnosesProp
             </div>
           </div>
         ))}
-      </div>
-      <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <p className="text-sm text-blue-900">
-          <span className="font-semibold">Clinical Note:</span> Results should be 
-          interpreted by a qualified medical professional in conjunction with complete 
-          clinical evaluation of the patient.
-        </p>
       </div>
     </div>
   );

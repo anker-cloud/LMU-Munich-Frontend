@@ -97,33 +97,4 @@ export const api = {
     return response.data;
   },
 
-  /**
-   * POST /patient/register-and-predict (workaround for existing patients)
-   * Used when we already have the patient's tabular data and want to avoid S3 lookup issues
-   * Body (FormData):
-   *   - tabular: JSON string with { SEX, AGE, EDUCATION, CDR, MMSE, APGEN1, APGEN2 }
-   *   - t1w_file: File (MRI scan)
-   *   - explain: "true" | "false"
-   * Returns: Same structure as prediction object
-   */
-  predictWithTabularData: async (tabularData: {
-    SEX: number;
-    AGE: number;
-    EDUCATION: number;
-    CDR: number;
-    MMSE: number;
-    APGEN1: number;
-    APGEN2: number;
-  }, file: File) => {
-    const formData = new FormData();
-    formData.append('tabular', JSON.stringify(tabularData));
-    formData.append('t1w_file', file);
-    formData.append('explain', 'true');
-
-    const response = await axios.post(`${BASE_URL}/patient/register-and-predict`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-
-    return response.data;
-  },
 };

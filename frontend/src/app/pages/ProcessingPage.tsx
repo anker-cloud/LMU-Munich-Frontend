@@ -13,10 +13,9 @@ interface ProcessingPageProps {
   patientId: string;
   file?: File;
   isAddingScan?: boolean;
-  existingTabularData?: any;
 }
 
-export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingScan, existingTabularData }: ProcessingPageProps) {
+export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingScan }: ProcessingPageProps) {
   // If adding scan to existing patient with file, start analyzing immediately
   const [step, setStep] = useState<'form' | 'upload' | 'analyzing'>(
     isAddingScan && file ? 'analyzing' : (patientId === 'NEW' ? 'form' : 'upload')
@@ -48,6 +47,9 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
 
     if (formData.AGE && (age <= 0 || age > 120)) errs.AGE = "Range: 1-120";
     if (formData.EDUCATION && (edu < 0 || edu > 100)) errs.EDUCATION = "Range: 0-100";
+    if (formData.EDUCATION && formData.AGE && !errs.EDUCATION && !errs.AGE && edu >= age) {
+      errs.EDUCATION = "Must be less than age";
+    }
     if (formData.MMSE && (mmse < 0 || mmse > 30)) errs.MMSE = "Range: 0-30";
 
     return errs;
@@ -108,17 +110,9 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
           };
         }
       } else {
-        // Use predict endpoint for existing patients
+        // Use predict endpoint for existing patients — backend fetches stored tabular data
         console.log('Existing patient predict - patientId:', patientId);
-        console.log('Existing tabular data:', existingTabularData);
-
-        if (existingTabularData) {
-          // If we have tabular data, use it directly (avoids S3 lookup issues)
-          result = await api.predictWithTabularData(existingTabularData, fileToUse);
-        } else {
-          // Otherwise let backend try to fetch from S3
-          result = await api.predictExistingPatient(patientId, fileToUse);
-        }
+        result = await api.predictExistingPatient(patientId, fileToUse);
       }
       setAnalysisResult(result);
     } catch (e: any) {
@@ -166,7 +160,7 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
         setIsLoading(true);
 
         try {
-          const result = await api.predictPatient(patientId, file);
+          const result = await api.predictExistingPatient(patientId, file);
           setAnalysisResult(result);
         } catch (e) {
           const error = e as Error;
@@ -457,7 +451,7 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
                 </div>
                 <div className="flex items-center gap-2 text-slate-400 font-mono text-xs font-bold bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100">
                   <Clock className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Est: 30ms</span>
+                  <span>Est: 240s</span>
                 </div>
             </div>
 
@@ -489,7 +483,7 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
                     : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
                   }`}
                 >
-                  View Dashboard Panel <ArrowRight className="w-4 h-4" />
+                  View Dashboard <ArrowRight className="w-4 h-4" />
                 </Button>
               )}
             </div>
