@@ -57,6 +57,8 @@ export function MRIViewer3D({
       isRadiologicalConvention: false,  // Use neurological convention
       logging: false,  // Reduce console noise
       isColorbar: true,  // Backend: show activation scale for GradCAM
+      multiplanarForceRender: true,  // always show the 3D render tile alongside slices
+      multiplanarPadding: 4,         // consistent spacing so tile heights line up
     });
 
     // Attach to canvas and verify it worked
@@ -182,16 +184,12 @@ export function MRIViewer3D({
           console.log('[MRIViewer3D] Base volume dims:', baseVol?.dims);
           console.log('[MRIViewer3D] Overlay volume dims:', overlayVol?.dims);
 
-          // Check if overlay has valid data
-          if (!overlayVol || !overlayVol.dims) {
-            console.error('[MRIViewer3D] ❌ OVERLAY HAS NO DIMENSIONS - File may be corrupted!');
-          } else if (JSON.stringify(overlayVol.dims) !== JSON.stringify(baseVol.dims)) {
-            console.error('[MRIViewer3D] ❌ DIMENSION MISMATCH!');
-            console.error('[MRIViewer3D]   Base:', baseVol.dims);
-            console.error('[MRIViewer3D]   Overlay:', overlayVol.dims);
+          // Check if overlay has valid data — dims is unreliable even on a successful load,
+          // so use global_max (set from the actual voxel data) as the real corruption signal.
+          if (!overlayVol || typeof overlayVol.global_max !== 'number') {
+            console.error('[MRIViewer3D] ❌ OVERLAY HAS NO DATA RANGE - File may be corrupted!');
           } else {
-            console.log('[MRIViewer3D] ✅ Overlay dimensions match base MRI - alignment correct!');
-            console.log('[MRIViewer3D] ✅ Overlay data range:', overlayVol.global_min, 'to', overlayVol.global_max);
+            console.log('[MRIViewer3D] ✅ Overlay loaded with valid data range:', overlayVol.global_min, 'to', overlayVol.global_max);
           }
 
           console.log('[MRIViewer3D] ==========================================');
@@ -202,6 +200,10 @@ export function MRIViewer3D({
 
         // Start with slice view by default
         nv.setSliceType(nv.sliceTypeMultiplanar);
+
+        // Level the 3D render camera (elevation=0) so the brain object is vertically
+        // centered in its tile, matching the always-centered 2D slice tiles.
+        nv.setRenderAzimuthElevation(110, 0);
 
         setLoading(false);
         onLoadComplete?.();
@@ -342,7 +344,8 @@ export function MRIViewer3D({
         <div className="text-[10px] text-slate-500 italic">
           <p>💡 Slice view shows heatmap directly ON affected brain regions. Use 3D for overview.</p>
         </div>
-        {overlayUrl && nvRef.current?.volumes.length === 2 && !nvRef.current.volumes[1]?.dims && (
+        {overlayUrl && nvRef.current?.volumes.length === 2 &&
+          typeof nvRef.current.volumes[1]?.global_max !== 'number' && (
           <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-[10px] text-amber-800">
             <p className="font-bold">⚠️ Overlay dimensions unavailable</p>
             <p className="mt-1">Backend GradCAM overlay file may be corrupted. Using 2D heatmap fallback.</p>
