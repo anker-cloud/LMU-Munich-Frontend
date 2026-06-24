@@ -103,7 +103,7 @@ export function MRIViewer3D({
       }
 
       const urlsToTry = [primaryMriUrl, ...fallbackUrls];
-
+      const start_time = performance.now();
       for (const url of urlsToTry) {
         try {
           console.log(`[MRIViewer3D] Trying to load MRI from: ${url}`);
@@ -142,17 +142,22 @@ export function MRIViewer3D({
           console.log(`[MRIViewer3D] Error: ${err?.message || err}`);
         }
       }
-
+      const end_time = performance.now();
+      console.log(`[MRIViewer3D] Total load time for all attempts: ${end_time - start_time} ms`);
       // If all URLs failed, throw error
       console.error('[MRIViewer3D] ❌ ALL URLS FAILED. Tried:', urlsToTry);
       throw new Error(`Failed to load MRI from any URL. Tried: ${urlsToTry.join(', ')}`);
     };
 
     // Try loading base MRI (and overlay if available) with fallbacks
+    const start_time = performance.now();
     tryLoadMriAndOverlay(mriUrl, overlayUrl)
+    const end_time = performance.now();
+
       .then(async () => {
         console.log('[MRIViewer3D] ✓ Volumes loaded successfully');
         console.log('[MRIViewer3D] Total volumes:', nv.volumes.length);
+        console.log('[MRIViewer3D] Load time:', end_time - start_time, 'ms');
 
         // Log each volume
         nv.volumes.forEach((vol, idx) => {

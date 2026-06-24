@@ -88,8 +88,11 @@ export default function App() {
     } else {
       // Existing patient - fetch their record (includes prediction if available)
       try {
+        //just for debugging - how long does this await run for?
+        const start_time = performance.now()
         const data = await api.getPatientRecord(id);
-
+        const end_time = performance.now()
+        console.log(`Fetched patient record in ${(end_time - start_time).toFixed(2)} ms`);
         // Check if patient has stored prediction results
         if (data.prediction || data.last_prediction) {
           // Has existing results - show dashboard directly
@@ -147,6 +150,7 @@ export default function App() {
       if (patientList && patientList.length > 0) {
         const mostRecentPatientId = patientList[patientList.length - 1];
         console.log('Most recent patient ID from list:', mostRecentPatientId);
+        // need some timing code here to see how long this await runs.
 
         const fullRecord = await api.getPatientRecord(mostRecentPatientId);
         setSessionData(fullRecord);
@@ -411,6 +415,7 @@ export default function App() {
   // NEW: Use direct file streaming endpoint (no presigned URLs!)
   // Backend now serves files directly at: /patient/{patient_id}/file/{filename}
   const BASE_URL = import.meta.env.DEV ? '/api' : 'http://35.159.51.22:8000';
+
 
   let directHeatmapUrl: string | undefined;
   let directShapUrl: string | undefined;
