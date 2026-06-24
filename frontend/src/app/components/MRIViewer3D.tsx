@@ -90,69 +90,87 @@ export function MRIViewer3D({
 
     // Helper function to try loading MRI with fallback URLs
     const tryLoadMriAndOverlay = async (primaryMriUrl: string, overlayUrl?: string) => {
-      // Generate fallback URLs based on the primary URL
       const patientId = primaryMriUrl.match(/patient\/([^/]+)\//)?.[1];
       const cacheBust = primaryMriUrl.match(/\?t=\d+/)?.[0] || '';
 
+      // Build candidate URLs
       const fallbackUrls: string[] = [];
       if (patientId) {
         const base = primaryMriUrl.split('/file/')[0];
-        // Try: flair → t1w (skip preprocessed - some are corrupted)
         if (!primaryMriUrl.includes('flair')) fallbackUrls.push(`${base}/file/${patientId}_flair.nii.gz${cacheBust}`);
         if (!primaryMriUrl.includes('t1w')) fallbackUrls.push(`${base}/file/${patientId}_t1w.nii.gz${cacheBust}`);
       }
+      const allUrls = [primaryMriUrl, ...fallbackUrls];
 
-      const urlsToTry = [primaryMriUrl, ...fallbackUrls];
-
-      for (const url of urlsToTry) {
+      // Cheap range request — confirms file exists without downloading the body
+      const checkExists = async (url: string): Promise<boolean> => {
         try {
-          console.log(`[MRIViewer3D] Trying to load MRI from: ${url}`);
-
-          const isFlair = url.toLowerCase().includes('flair');
-          const isPreprocessed = url.toLowerCase().includes('preprocessed');
-
-          // Build volume list - base MRI + overlay (if available)
-          const volumes = [{
-            url: url,
-            colormap: 'gray',
-            opacity: 1.0,
-            cal_min: isPreprocessed ? 0 : (isFlair ? 0 : 5),
-            cal_max: isPreprocessed ? 1 : (isFlair ? 250 : 180),
-          }];
-
-          // Add overlay to the volume list (backend recommendation: load both together)
-          if (overlayUrl) {
-            volumes.push({
-              url: overlayUrl,
-              colormap: 'hot',
-              opacity: 0.5,      // Revert to original opacity
-              cal_min: 0.4,      // Higher threshold - only show strong activations
-              cal_max: 1.0,
-            });
-            console.log(`[MRIViewer3D] Loading with overlay: ${overlayUrl}`);
-          }
-
-          // Load all volumes at once (Niivue handles ordering internally)
-          await nv.loadVolumes(volumes);
-
-          console.log(`[MRIViewer3D] ✓✓✓ Successfully loaded ${volumes.length} volume(s) from: ${url}`);
-          return url; // Success!
-        } catch (err: any) {
-          console.log(`[MRIViewer3D] ✗ Failed to load from ${url}`);
-          console.log(`[MRIViewer3D] Error: ${err?.message || err}`);
+          const resp = await fetch(url, {
+            method: 'GET',
+            headers: { 'Range': 'bytes=0-0' }
+          });
+          const size = resp.headers.get('content-range') || resp.headers.get('content-length');
+          console.log(`[MRIViewer3D] CHECK ${url} → ${resp.status} (${size} bytes)`);
+          return resp.status === 206 || resp.status === 200;
+        } catch {
+          return false;
         }
+      };
+
+      // Fire all checks in parallel — pays max(latency) not sum(latency)
+      const existence = await Promise.all(allUrls.map(checkExists));
+      const validUrl = allUrls.find((_, i) => existence[i]);
+
+      if (!validUrl) {
+        console.error('[MRIViewer3D] ❌ No valid MRI URL found. Tried:', allUrls);
+        throw new Error(`No valid MRI found. Tried: ${allUrls.join(', ')}`);
       }
 
-      // If all URLs failed, throw error
-      console.error('[MRIViewer3D] ❌ ALL URLS FAILED. Tried:', urlsToTry);
-      throw new Error(`Failed to load MRI from any URL. Tried: ${urlsToTry.join(', ')}`);
+      console.log(`[MRIViewer3D] ✓ Using MRI URL: ${validUrl}`);
+
+      const isFlair = validUrl.toLowerCase().includes('flair');
+      const isPreprocessed = validUrl.toLowerCase().includes('preprocessed');
+
+      // Build volume list — load both together so Niivue handles overlay correctly
+      const volumes: any[] = [
+        {
+          url: validUrl,
+          colormap: 'gray',
+          opacity: 1.0,
+          cal_min: isPreprocessed ? 0 : (isFlair ? 0 : 5),
+          cal_max: isPreprocessed ? 1 : (isFlair ? 250 : 180),
+        }
+      ];
+
+      if (overlayUrl) {
+        volumes.push({
+          url: overlayUrl,
+          colormap: 'hot',
+          opacity: 0.5,
+          cal_min: 0.4,
+          cal_max: 1.0,
+        });
+        console.log(`[MRIViewer3D] Loading with overlay: ${overlayUrl}`);
+      }
+
+      const start_time = performance.now();
+      await nv.loadVolumes(volumes);
+      console.log(`[MRIViewer3D] ✓✓✓ Successfully loaded ${volumes.length} volume(s) from: ${validUrl}`);
+      console.log(`[MRIViewer3D] Total load time: ${(performance.now() - start_time).toFixed(0)} ms`);
+
+      return validUrl;
     };
 
     // Try loading base MRI (and overlay if available) with fallbacks
+    const start_time = performance.now();
     tryLoadMriAndOverlay(mriUrl, overlayUrl)
+
       .then(async () => {
         console.log('[MRIViewer3D] ✓ Volumes loaded successfully');
         console.log('[MRIViewer3D] Total volumes:', nv.volumes.length);
+        const end_time = performance.now();
+
+        console.log('[MRIViewer3D] Load time:', end_time - start_time, 'ms');
 
         // Log each volume
         nv.volumes.forEach((vol, idx) => {
@@ -258,11 +276,10 @@ export function MRIViewer3D({
                 nvRef.current.updateGLVolume();
                 setShowOverlay(newShowOverlay);
               }}
-              className={`text-[10px] px-3 py-1 rounded transition-colors font-bold uppercase tracking-wider ${
-                showOverlay
+              className={`text-[10px] px-3 py-1 rounded transition-colors font-bold uppercase tracking-wider ${showOverlay
                   ? 'bg-orange-600 text-white hover:bg-orange-700'
                   : 'bg-slate-300 text-slate-600 hover:bg-slate-400'
-              }`}
+                }`}
             >
               {showOverlay ? 'Hide Heatmap' : 'Show Heatmap'}
             </button>
@@ -346,11 +363,11 @@ export function MRIViewer3D({
         </div>
         {overlayUrl && nvRef.current?.volumes.length === 2 &&
           typeof nvRef.current.volumes[1]?.global_max !== 'number' && (
-          <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-[10px] text-amber-800">
-            <p className="font-bold">⚠️ Overlay dimensions unavailable</p>
-            <p className="mt-1">Backend GradCAM overlay file may be corrupted. Using 2D heatmap fallback.</p>
-          </div>
-        )}
+            <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-[10px] text-amber-800">
+              <p className="font-bold">⚠️ Overlay dimensions unavailable</p>
+              <p className="mt-1">Backend GradCAM overlay file may be corrupted. Using 2D heatmap fallback.</p>
+            </div>
+          )}
       </div>
     </div>
   );
