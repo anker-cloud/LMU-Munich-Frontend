@@ -422,12 +422,19 @@ export default function App() {
     const cacheBust = `?t=${refreshKey}`;
     directHeatmapUrl = `${BASE_URL}/patient/${patientId}/file/${patientId}_heatmap.png${cacheBust}`;
     directShapUrl = `${BASE_URL}/patient/${patientId}/file/${patientId}_shap.png${cacheBust}`;
-    // Different patients have different scan types
-    // Try FLAIR first (common for lesion detection), then T1w (common anatomical)
-    // Skip preprocessed - some are corrupted/too small
-    directMriNiftiUrl = `${BASE_URL}/patient/${patientId}/file/${patientId}_flair.nii.gz${cacheBust}`;
     // Backend saves gradcam with original_stem prefix (usually "scan")
     directOverlayNiftiUrl = `${BASE_URL}/patient/${patientId}/file/${patientId}_gradcam.nii.gz${cacheBust}`;
+
+    // IMPORTANT: Use the MRI URL provided by the backend (mri_nifti_url)
+    // The backend knows which modality (T1w or FLAIR) was used for Grad-CAM generation.
+    // Do NOT hardcode a modality here - it must match the one the overlay was generated from.
+    if (gradcamObject?.mri_nifti_url) {
+      // Backend already provided the correct MRI URL - just add cache bust
+      const backendUrl = gradcamObject.mri_nifti_url;
+      // Remove any existing query params, then add our cache bust
+      const baseUrl = backendUrl.split('?')[0];
+      directMriNiftiUrl = `${baseUrl}${cacheBust}`;
+    }
   }
 
   // Use direct streaming URLs (bypasses presigned URL expiration issues)
@@ -438,6 +445,7 @@ export default function App() {
     shapObject = { ...shapObject, chart_path: directShapUrl };
   }
   if (directMriNiftiUrl) {
+    // Only override if we constructed a URL from backend's mri_nifti_url
     gradcamObject = { ...gradcamObject, mri_nifti_url: directMriNiftiUrl };
   }
   if (directOverlayNiftiUrl) {
