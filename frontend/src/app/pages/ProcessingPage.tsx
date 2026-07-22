@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Brain, ArrowRight, Loader2, CheckCircle2, Clock, ClipboardList, UploadCloud, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { Brain, ArrowRight, Loader2, CheckCircle2, Clock, ClipboardList, UploadCloud, ArrowLeft } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Progress } from "../components/ui/progress";
@@ -55,25 +55,12 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
     return errs;
   }, [formData]);
 
-  const isFormValid =
-    formData.SEX !== "" &&
-    formData.AGE !== "" &&
-    formData.EDUCATION !== "" &&
-    formData.CDR !== "" &&
-    formData.MMSE !== "" &&
-    formData.APGEN1 !== "" &&
-    formData.APGEN2 !== "" &&
-    Object.keys(fieldErrors).length === 0;
+  // All 7 fields are optional — a field only blocks submission if it's
+  // filled in with a value that violates its own range constraint.
+  const isFormValid = Object.keys(fieldErrors).length === 0;
 
   const getButtonDisabledReason = () => {
     if (isLoading) return 'Processing...';
-    if (formData.SEX === "") return 'Select Sex';
-    if (formData.AGE === "") return 'Enter Age';
-    if (formData.CDR === "") return 'Select CDR';
-    if (formData.MMSE === "") return 'Enter MMSE';
-    if (formData.EDUCATION === "") return 'Enter Education';
-    if (formData.APGEN1 === "") return 'Select APOE Genotype 1';
-    if (formData.APGEN2 === "") return 'Select APOE Genotype 2';
     if (Object.keys(fieldErrors).length > 0) return 'Fix validation errors';
     return '';
   };
@@ -209,6 +196,12 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
               </div>
             </div>
 
+            <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <p className="text-sm text-amber-800 font-medium">
+                Scan not available for this patient — upload a scan to view the dashboard.
+              </p>
+            </div>
+
             <div
               onClick={() => fileInputRef.current?.click()}
               onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
@@ -302,7 +295,7 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-0.5">Sex Parameters (1:M, 2:F) *</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-0.5">Sex Parameters (1:M, 2:F)</label>
                 <Select onValueChange={(v: string) => setFormData({...formData, SEX: v})} value={formData.SEX}>
                   <SelectTrigger className="h-12 bg-slate-50 border-slate-200 rounded-xl font-bold text-slate-700"><SelectValue placeholder="Select sex" /></SelectTrigger>
                   <SelectContent>
@@ -314,7 +307,7 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
 
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center px-0.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Age (in Years) *</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Age (in Years)</label>
                   {fieldErrors.AGE && <span className="text-[10px] text-red-500 font-bold">* {fieldErrors.AGE}</span>}
                 </div>
                 <input 
@@ -327,7 +320,7 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-0.5">CDR *</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-0.5">CDR</label>
                 <Select onValueChange={(v: string) => setFormData({...formData, CDR: v})} value={formData.CDR}>
                   <SelectTrigger className="h-12 bg-slate-50 border-slate-200 rounded-xl font-bold text-slate-700"><SelectValue placeholder="Select CDR" /></SelectTrigger>
                   <SelectContent>
@@ -342,7 +335,7 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
 
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center px-0.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">MMSE (0-30) *</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">MMSE (0-30)</label>
                   {fieldErrors.MMSE && <span className="text-[10px] text-red-500 font-bold">* {fieldErrors.MMSE}</span>}
                 </div>
                 <input 
@@ -356,7 +349,7 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
 
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center px-0.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Education (Years) *</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Education (Years)</label>
                   {fieldErrors.EDUCATION && <span className="text-[10px] text-red-500 font-bold">* {fieldErrors.EDUCATION}</span>}
                 </div>
                 <input 
@@ -369,7 +362,7 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-0.5">APOE genotype 1 *</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-0.5">APOE genotype 1</label>
                 <Select onValueChange={(v: string) => setFormData({...formData, APGEN1: v})} value={formData.APGEN1}>
                   <SelectTrigger className="h-12 bg-slate-50 border-slate-200 rounded-xl font-bold text-slate-700"><SelectValue placeholder="Select genotype" /></SelectTrigger>
                   <SelectContent>
@@ -381,7 +374,7 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
               </div>
 
               <div className="space-y-1.5 sm:col-span-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-0.5">APOE genotype 2 *</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-0.5">APOE genotype 2</label>
                 <Select onValueChange={(v: string) => setFormData({...formData, APGEN2: v})} value={formData.APGEN2}>
                   <SelectTrigger className="h-12 bg-slate-50 border-slate-200 rounded-xl font-bold text-slate-700"><SelectValue placeholder="Select genotype" /></SelectTrigger>
                   <SelectContent>
