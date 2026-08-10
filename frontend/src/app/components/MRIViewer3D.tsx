@@ -61,7 +61,7 @@ export function MRIViewer3D({
       isColorbar: true,  // Backend: show activation scale for GradCAM
       multiplanarForceRender: true,  // always show the 3D render tile alongside slices
       multiplanarPadding: 4,         // consistent spacing so tile heights line up
-      interpolation: true,  // Enable smooth interpolation for overlay rendering
+      isNearestInterpolation: false,  // Enable smooth interpolation for overlay rendering
     });
 
     // Attach to canvas and verify it worked
@@ -152,8 +152,21 @@ export function MRIViewer3D({
 
       console.log(`[MRIViewer3D] ✓ Using MRI URL: ${validUrl}`);
 
-      const isFlair = validUrl.toLowerCase().includes('flair');
       const isPreprocessed = validUrl.toLowerCase().includes('preprocessed');
+
+      // Preprocessed volumes are guaranteed 0-1 by the backend's RescaleIntensity
+      // step, so a fixed window is correct there. Raw uploads are NOT on a fixed
+      // scale — e.g. SynthStrip-conformed files max out around ~300, while raw
+      // 12-bit scanner scans (AMYCLEAR series, skull-stripped or not) run up to
+      // ~4000. A hardcoded cal_max clips the higher-scale files to solid white.
+      // Let Niivue compute its own robust (2nd-98th percentile) window per file
+      // instead — trustCalMinMax:false forces it to ignore any (possibly bogus)
+      // cal_min/max baked into the NIfTI header, and ignoreZeroVoxels:true keeps
+      // the large zeroed-out background (raw corners or skull-stripped mask)
+      // from skewing the percentile calculation.
+      const rawWindowOpts = isPreprocessed
+        ? { cal_min: 0, cal_max: 1 }
+        : { trustCalMinMax: false, ignoreZeroVoxels: true };
 
       // Build volume list — load both together so Niivue handles overlay correctly
       const volumes: any[] = [
@@ -161,8 +174,7 @@ export function MRIViewer3D({
           url: validUrl,
           colormap: 'gray',
           opacity: 1.0,
-          cal_min: isPreprocessed ? 0 : (isFlair ? 0 : 5),
-          cal_max: isPreprocessed ? 1 : (isFlair ? 250 : 180),
+          ...rawWindowOpts,
         }
       ];
 
