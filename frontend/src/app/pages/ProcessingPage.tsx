@@ -196,12 +196,6 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
               </div>
             </div>
 
-            <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4">
-              <p className="text-sm text-amber-800 font-medium">
-                Scan not available for this patient — upload a scan to view the dashboard.
-              </p>
-            </div>
-
             <div
               onClick={() => fileInputRef.current?.click()}
               onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
