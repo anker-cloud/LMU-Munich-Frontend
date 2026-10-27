@@ -10,6 +10,9 @@ interface MRIViewer3DProps {
   onLoadComplete?: () => void;
 }
 
+// Start value of the heatmap threshold, also shown as the recommended value.
+// 10% is our choice for now (Boris found the old fixed 25% too restrictive);
+// to be confirmed with Boris (bug_action_items.md Sl. No 30).
 const DEFAULT_HEATMAP_THRESHOLD = 0.1;
 
 // Heatmap opacity: the 3D render needs a stronger overlay than the slices to
@@ -537,6 +540,9 @@ export function MRIViewer3D({
         </div>
         <div className="text-[10px] text-slate-500 italic">
           <p>💡 The heatmap shows where the model focused, not how severe any change is. Use 3D for an overview.</p>
+          {overlayUrl && !overlayLoadFailed && (
+            <p>💡 Recommended heatmap threshold: {Math.round(DEFAULT_HEATMAP_THRESHOLD * 100)}%. Raise it to see only the strongest areas.</p>
+          )}
         </div>
         {overlayUrl && nvRef.current?.volumes.length === 2 &&
           typeof nvRef.current.volumes[1]?.global_max !== 'number' && (
