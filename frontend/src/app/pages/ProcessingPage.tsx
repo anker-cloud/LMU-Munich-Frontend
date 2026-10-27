@@ -114,19 +114,15 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
     }
   };
 
-  // Progress bar effect - stops at 90% and waits for backend response
+  // Progress bar effect - eases towards 90% and waits for backend response.
+  // A raw scan takes ~1–1.5 min (skull-stripping ~50 s, SHAP ~25 s), so the
+  // bar slows down instead of sitting at 90% after a few seconds
+  // (≈50% after 13 s, ≈80% after 40 s, ≈89% after 80 s).
   useEffect(() => {
     if (step === 'analyzing' && !error && !analysisResult) {
       const timer = setInterval(() => {
-        setProgress((prev) => {
-          // Stop at 90% and wait for backend response
-          if (prev >= 90) {
-            clearInterval(timer);
-            return 90;
-          }
-          return prev + 1;
-        });
-      }, 150);
+        setProgress((prev) => Math.min(90, prev + Math.max(0.05, (90 - prev) * 0.03)));
+      }, 500);
       return () => clearInterval(timer);
     }
     // Stop progress and reset when error occurs
@@ -433,12 +429,12 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
                     <CheckCircle2 className="w-6 h-6 text-green-500 animate-in zoom-in" />
                   )}
                   <span className="font-bold text-slate-700 text-lg">
-                    {!analysisResult ? "Processing volumetric MRI coordinates..." : "Calculations matched successfully"}
+                    {!analysisResult ? "Analysing the scan: skull-stripping, prediction, explanations..." : "Analysis complete"}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-slate-400 font-mono text-xs font-bold bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100">
                   <Clock className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Est: 240s</span>
+                  <span>Est: 1–2 min</span>
                 </div>
             </div>
 
