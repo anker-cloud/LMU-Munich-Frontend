@@ -70,6 +70,28 @@ export function MRIViewer3D({
   const sliceWindowRef = useRef<{ min: number; max: number } | null>(null);
   const pendingThresholdRef = useRef<number | null>(null);
   const frameRef = useRef<number | null>(null);
+  // Text of the number box next to the slider (percent), kept separately so
+  // the user can clear it while typing
+  const [thresholdText, setThresholdText] = useState(String(Math.round(DEFAULT_HEATMAP_THRESHOLD * 100)));
+
+  // Set the heatmap threshold (0–1) from the slider or the number box.
+  // Redraws at most once per frame: updating the GL volume on every input
+  // event made the slider stutter.
+  const applyThreshold = (value: number) => {
+    setThreshold(value);
+    setThresholdText(String(Math.round(value * 100)));
+    pendingThresholdRef.current = value;
+    if (frameRef.current === null) {
+      frameRef.current = requestAnimationFrame(() => {
+        frameRef.current = null;
+        const overlay = nvRef.current?.volumes[1];
+        if (overlay && pendingThresholdRef.current !== null) {
+          overlay.cal_min = pendingThresholdRef.current;
+          nvRef.current!.updateGLVolume();
+        }
+      });
+    }
+  };
 
   useEffect(() => {
     if (!canvasRef.current || !mriUrl) {
@@ -480,26 +502,29 @@ export function MRIViewer3D({
                 max={0.6}
                 step={0.01}
                 value={threshold}
-                onChange={(e) => {
-                  const value = Number(e.target.value);
-                  setThreshold(value);
-                  // Redraw at most once per frame: updating the GL volume on
-                  // every input event made the slider stutter
-                  pendingThresholdRef.current = value;
-                  if (frameRef.current === null) {
-                    frameRef.current = requestAnimationFrame(() => {
-                      frameRef.current = null;
-                      const overlay = nvRef.current?.volumes[1];
-                      if (overlay && pendingThresholdRef.current !== null) {
-                        overlay.cal_min = pendingThresholdRef.current;
-                        nvRef.current!.updateGLVolume();
-                      }
-                    });
-                  }
-                }}
+                onChange={(e) => applyThreshold(Number(e.target.value))}
                 className="w-32 accent-orange-600 cursor-pointer"
               />
-              <span className="font-mono w-8">{Math.round(threshold * 100)}%</span>
+              <span className="flex items-center gap-0.5 font-mono normal-case">
+                <input
+                  type="number"
+                  min={0}
+                  max={60}
+                  step={1}
+                  value={thresholdText}
+                  onChange={(e) => {
+                    setThresholdText(e.target.value);
+                    const pct = Number(e.target.value);
+                    if (e.target.value !== '' && Number.isFinite(pct)) {
+                      applyThreshold(Math.min(60, Math.max(0, pct)) / 100);
+                    }
+                  }}
+                  onBlur={() => setThresholdText(String(Math.round(threshold * 100)))}
+                  aria-label="Heatmap threshold in percent"
+                  className="w-11 px-1 py-0.5 border border-slate-300 rounded text-slate-600 text-right"
+                />
+                %
+              </span>
             </label>
           )}
           <div className="text-[10px] text-slate-400">
