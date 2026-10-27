@@ -3,6 +3,7 @@ import { Brain, Download, ArrowLeft, RefreshCw } from 'lucide-react';
 import { PatientInfo } from './components/PatientInfo';
 import { DiagnosisCard } from './components/DiagnosisCard';
 import { MRIViewer3D } from './components/MRIViewer3D';
+import { HeatmapSlices } from './components/HeatmapSlices';
 import { ShapValues } from './components/ShapValues';
 import { AlternativeDiagnoses } from './components/AlternativeDiagnoses';
 import { IdentificationPage } from './pages/IdentificationPage';
@@ -171,9 +172,8 @@ export default function App() {
   const handleDownloadReport = async () => {
     if (!sessionData) return;
 
-    // SHAP chart is the only async image actually shown inside the captured
-    // sections below — MRI is intentionally excluded from the report, so we
-    // no longer need to wait on imagesLoaded.heatmap / imagesLoaded.mri3d.
+    // SHAP chart must be loaded before capturing. The 3D viewer is excluded
+    // from the report; the 2D heatmap slices are added if they loaded.
     if (!imagesLoaded.shap) {
       return; // Button should be disabled, but extra safety check
     }
@@ -262,6 +262,12 @@ export default function App() {
       // Mirrors the dashboard layout exactly, minus the MRI viewer section.
       console.log('[PDF] Capturing Patient Info + Diagnosis...');
       await addSection('#pdf-section-overview');
+
+      // The 3D viewer can't be captured; the 2D slices stand in for it
+      if (imagesLoaded.heatmap) {
+        console.log('[PDF] Capturing 2D heatmap slices...');
+        await addSection('#pdf-section-heatmap2d');
+      }
 
       console.log('[PDF] Capturing Differential Diagnoses...');
       await addSection('#pdf-section-altdx');
@@ -547,6 +553,12 @@ export default function App() {
               title="3D Brain with Grad-CAM"
               onRefreshRequest={handleRefresh}
               onLoadComplete={() => setImagesLoaded(prev => ({ ...prev, mri3d: true }))}
+            />
+          </div>
+          <div id="pdf-section-heatmap2d">
+            <HeatmapSlices
+              imageUrl={gradcamObject?.heatmap_png}
+              onLoadChange={(loaded) => setImagesLoaded(prev => ({ ...prev, heatmap: loaded }))}
             />
           </div>
           <div id="pdf-section-altdx">
