@@ -51,9 +51,10 @@ export function ShapValues({ shap, diagnosis, onImageLoad }: ShapValuesProps) {
               href={shap.chart_path}
               target="_blank"
               rel="noreferrer"
+              data-html2canvas-ignore="true"
               className="inline-flex items-center gap-2 text-xs font-bold text-blue-600 bg-blue-50 px-3 py-2 rounded-lg hover:bg-blue-100 transition-colors"
             >
-              <FileText className="w-3.5 h-3.5" /> View High-Res S3 Chart File
+              <FileText className="w-3.5 h-3.5" /> Open chart image
             </a>
           </>
         )}
