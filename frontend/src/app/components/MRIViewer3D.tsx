@@ -10,6 +10,8 @@ interface MRIViewer3DProps {
   onLoadComplete?: () => void;
 }
 
+const DEFAULT_HEATMAP_THRESHOLD = 0.1;
+
 export function MRIViewer3D({
   mriUrl,
   overlayUrl,
@@ -24,6 +26,9 @@ export function MRIViewer3D({
   const [viewMode, setViewMode] = useState<'3d' | 'slices'>('slices');
   const [showOverlay, setShowOverlay] = useState(true);  // Backend: overlay toggle
   const [overlayLoadFailed, setOverlayLoadFailed] = useState(false);  // Track overlay load failure
+  // Heatmap values below this are hidden. Was a fixed 0.25, which Boris found
+  // too restrictive; the clinician can now set it (heatmap is scaled 0–1).
+  const [threshold, setThreshold] = useState(DEFAULT_HEATMAP_THRESHOLD);
 
   useEffect(() => {
     if (!canvasRef.current || !mriUrl) {
@@ -186,7 +191,7 @@ export function MRIViewer3D({
             url: overlayUrl,
             colormap: 'hot',
             opacity: 0.5,  // Balanced opacity - visible but not overpowering
-            cal_min: 0.25,  // Threshold to show significant activations
+            cal_min: threshold,  // hide weak activations (slider below)
             cal_max: 1.0,
           });
           console.log(`[MRIViewer3D] Loading with overlay: ${overlayUrl}`);
@@ -407,9 +412,33 @@ export function MRIViewer3D({
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-32 h-3 bg-gradient-to-r from-orange-400 via-red-500 to-red-800 rounded" />
+            {/* Matches Niivue's "hot" colormap used for the overlay */}
+            <div className="w-32 h-3 bg-gradient-to-r from-red-800 via-orange-500 to-yellow-100 rounded" />
             <span className="text-[10px] font-bold text-slate-400 uppercase">Low → High model attention</span>
           </div>
+          {overlayUrl && !overlayLoadFailed && (
+            <label className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase">
+              Hide below
+              <input
+                type="range"
+                min={0}
+                max={0.6}
+                step={0.05}
+                value={threshold}
+                onChange={(e) => {
+                  const value = Number(e.target.value);
+                  setThreshold(value);
+                  const overlay = nvRef.current?.volumes[1];
+                  if (overlay) {
+                    overlay.cal_min = value;
+                    nvRef.current!.updateGLVolume();
+                  }
+                }}
+                className="w-24 accent-orange-600"
+              />
+              <span className="font-mono w-8">{threshold.toFixed(2)}</span>
+            </label>
+          )}
           <div className="text-[10px] text-slate-400">
             {viewMode === '3d' ? (
               <p>🖱️ Drag to rotate • Scroll to zoom • Right-click to pan</p>
