@@ -68,6 +68,8 @@ export function MRIViewer3D({
   const [threshold, setThreshold] = useState(DEFAULT_HEATMAP_THRESHOLD);
   const [cutOpen, setCutOpen] = useState(true);
   const sliceWindowRef = useRef<{ min: number; max: number } | null>(null);
+  const pendingThresholdRef = useRef<number | null>(null);
+  const frameRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!canvasRef.current || !mriUrl) {
@@ -467,26 +469,37 @@ export function MRIViewer3D({
             <span className="text-[10px] font-bold text-slate-400 uppercase">Low → High model attention</span>
           </div>
           {overlayUrl && !overlayLoadFailed && (
-            <label className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase">
-              Hide below
+            <label
+              className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase"
+              title="Hides the weakest part of the heatmap. 10% hides model attention below 10% of its maximum; move right to show only the strongest areas."
+            >
+              Heatmap threshold
               <input
                 type="range"
                 min={0}
                 max={0.6}
-                step={0.05}
+                step={0.01}
                 value={threshold}
                 onChange={(e) => {
                   const value = Number(e.target.value);
                   setThreshold(value);
-                  const overlay = nvRef.current?.volumes[1];
-                  if (overlay) {
-                    overlay.cal_min = value;
-                    nvRef.current!.updateGLVolume();
+                  // Redraw at most once per frame: updating the GL volume on
+                  // every input event made the slider stutter
+                  pendingThresholdRef.current = value;
+                  if (frameRef.current === null) {
+                    frameRef.current = requestAnimationFrame(() => {
+                      frameRef.current = null;
+                      const overlay = nvRef.current?.volumes[1];
+                      if (overlay && pendingThresholdRef.current !== null) {
+                        overlay.cal_min = pendingThresholdRef.current;
+                        nvRef.current!.updateGLVolume();
+                      }
+                    });
                   }
                 }}
-                className="w-24 accent-orange-600"
+                className="w-32 accent-orange-600 cursor-pointer"
               />
-              <span className="font-mono w-8">{threshold.toFixed(2)}</span>
+              <span className="font-mono w-8">{Math.round(threshold * 100)}%</span>
             </label>
           )}
           <div className="text-[10px] text-slate-400">
