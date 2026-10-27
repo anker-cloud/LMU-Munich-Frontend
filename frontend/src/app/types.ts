@@ -52,6 +52,7 @@ export interface Probabilities {
 export interface BackendResponse {
   patient_id: string;
   model_used: string;
+  model_note?: string | null;
   prediction: string;
   probabilities: Probabilities;
   patient_info: PatientInfo;

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Backend API base URL
-const BASE_URL = import.meta.env.DEV ? '/api' : 'http://35.159.51.22:8000';
+// Backend API base URL — set VITE_API_URL in .env to override
+const BASE_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? '/api' : 'http://35.159.51.22:8000');
 
 export const api = {
   /**
@@ -54,18 +54,25 @@ export const api = {
   }, file: File) => {
     const formData = new FormData();
 
-    // Backend expects numeric values in JSON string
-    const tabularData = {
-      SEX: Number(patientData.SEX),
-      AGE: Number(patientData.AGE),
-      EDUCATION: Number(patientData.EDUCATION),
-      CDR: Number(patientData.CDR),
-      MMSE: Number(patientData.MMSE),
-      APGEN1: Number(patientData.APGEN1),
-      APGEN2: Number(patientData.APGEN2)
-    };
+    // Only include fields the user actually filled in.
+    // Blank → omitted so the backend treats them as missing, not zero.
+    // If every field is blank, skip tabular entirely so the MRI-only model is used.
+    const tabularData: Record<string, number> = {};
+    const fieldMap: [string, string][] = [
+      ['SEX', patientData.SEX], ['AGE', patientData.AGE],
+      ['EDUCATION', patientData.EDUCATION], ['CDR', patientData.CDR],
+      ['MMSE', patientData.MMSE], ['APGEN1', patientData.APGEN1],
+      ['APGEN2', patientData.APGEN2],
+    ];
+    for (const [key, val] of fieldMap) {
+      if (val !== '' && val !== null && val !== undefined) {
+        tabularData[key] = Number(val);
+      }
+    }
 
-    formData.append('tabular', JSON.stringify(tabularData));
+    if (Object.keys(tabularData).length > 0) {
+      formData.append('tabular', JSON.stringify(tabularData));
+    }
     formData.append('t1w_file', file);
     formData.append('explain', 'true');
 

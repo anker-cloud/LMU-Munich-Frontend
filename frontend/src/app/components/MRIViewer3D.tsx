@@ -408,7 +408,7 @@ export function MRIViewer3D({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-32 h-3 bg-gradient-to-r from-orange-400 via-red-500 to-red-800 rounded" />
-            <span className="text-[10px] font-bold text-slate-400 uppercase">Low → Medium → High Severity</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase">Low → High model attention</span>
           </div>
           <div className="text-[10px] text-slate-400">
             {viewMode === '3d' ? (
@@ -419,7 +419,7 @@ export function MRIViewer3D({
           </div>
         </div>
         <div className="text-[10px] text-slate-500 italic">
-          <p>💡 Slice view shows heatmap directly ON affected brain regions. Use 3D for overview.</p>
+          <p>💡 The heatmap shows where the model focused, not how severe any change is. Use 3D for an overview.</p>
         </div>
         {overlayUrl && nvRef.current?.volumes.length === 2 &&
           typeof nvRef.current.volumes[1]?.global_max !== 'number' && (

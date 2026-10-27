@@ -9,10 +9,12 @@ interface ShapData {
 
 interface ShapValuesProps {
   shap?: SHAPResult;
+  diagnosis?: string;
   onImageLoad?: () => void;
 }
 
-export function ShapValues({ shap, onImageLoad }: ShapValuesProps) {
+export function ShapValues({ shap, diagnosis, onImageLoad }: ShapValuesProps) {
+  const target = diagnosis || 'the predicted diagnosis';
   const shapData: ShapData[] = shap?.features
     ? shap.features.map(f => ({
         feature: f.feature,
@@ -24,7 +26,7 @@ export function ShapValues({ shap, onImageLoad }: ShapValuesProps) {
     return (
       <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900 mb-2">SHAP Values - Feature Importance</h3>
-        <p className="text-sm text-gray-500">No explainability metrics returned from server stack.</p>
+        <p className="text-sm text-gray-500">No SHAP values for this result. They are only calculated when clinical values were entered.</p>
       </div>
     );
   }
@@ -34,7 +36,7 @@ export function ShapValues({ shap, onImageLoad }: ShapValuesProps) {
       <div className="flex flex-row justify-between items-start border-b pb-4 border-slate-100">
         <div>
           <h3 className="text-lg font-semibold text-gray-900 mb-1">SHAP Values - Feature Importance</h3>
-          <p className="text-sm text-gray-500">Values explaining the mathematical contribution of each feature to the final classification logic.</p>
+          <p className="text-sm text-gray-500">How much each clinical value pushed the model towards or away from {target}.</p>
         </div>
         {shap.chart_path && (
           <>
@@ -80,11 +82,11 @@ export function ShapValues({ shap, onImageLoad }: ShapValuesProps) {
       <div className="flex items-center justify-center gap-6 text-xs font-bold">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 bg-red-600 rounded" />
-          <span className="text-gray-600">Positive Impact (Drives Dementia Score)</span>
+          <span className="text-gray-600">Supports {target}</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 bg-blue-600 rounded" />
-          <span className="text-gray-600">Negative Impact (Protective/Normal Direction)</span>
+          <span className="text-gray-600">Argues against {target}</span>
         </div>
       </div>
     </div>

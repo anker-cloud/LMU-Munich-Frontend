@@ -9,20 +9,17 @@ const ALLOWED_FORMATS = [".nii", ".nii.gz", ".zip"];
 
 interface IdentificationPageProps {
   onProceed: (id: string, file?: File) => void;
-  onAddScan?: (id: string, file: File) => void;
   onRunNewScan?: (id: string) => void;
 }
 
-export function IdentificationPage({ onProceed, onAddScan, onRunNewScan }: IdentificationPageProps) {
+export function IdentificationPage({ onProceed, onRunNewScan }: IdentificationPageProps) {
   const [patientList, setPatientList] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [registryError, setRegistryError] = useState('');
   const [uploadError, setUploadError] = useState('');
-  const [addScanError, setAddScanError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const addScanFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     api.getPatients()
@@ -54,18 +51,6 @@ export function IdentificationPage({ onProceed, onAddScan, onRunNewScan }: Ident
   const handleAddScanClick = () => {
     if (selectedId && onRunNewScan) {
       onRunNewScan(selectedId);
-    }
-  };
-
-  const handleAddScanFileSelect = (file: File) => {
-    const fileName = file.name.toLowerCase();
-    const isValid = ALLOWED_FORMATS.some(ext => fileName.endsWith(ext));
-
-    if (isValid) {
-      setAddScanError('');
-      onProceed(selectedId, file);
-    } else {
-      setAddScanError(`*Invalid format. Please upload NIfTI (.nii, .nii.gz) or .zip files only.`);
     }
   };
 
@@ -134,7 +119,6 @@ export function IdentificationPage({ onProceed, onAddScan, onRunNewScan }: Ident
                   </SelectContent>
                 </Select>
                 {registryError && <div className="text-red-600 text-[10px] font-bold w-full text-center">{registryError}</div>}
-                {addScanError && <div className="text-red-600 text-[10px] font-bold w-full text-center">{addScanError}</div>}
 
                 {/* Content Action Button Cluster */}
                 <div className="w-full space-y-2.5">
@@ -164,14 +148,6 @@ export function IdentificationPage({ onProceed, onAddScan, onRunNewScan }: Ident
                     Open Dashboard <ArrowRight className="w-3.5 h-3.5 ml-0.5" />
                   </button>
                 </div>
-                
-                <input
-                  type="file"
-                  ref={addScanFileInputRef}
-                  className="hidden"
-                  onChange={(e) => e.target.files?.[0] && handleAddScanFileSelect(e.target.files[0])}
-                  accept=".nii,.gz,.zip"
-                />
               </div>
             </CardContent>
           </Card>

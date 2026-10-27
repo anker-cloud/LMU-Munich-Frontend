@@ -111,61 +111,28 @@ export default function App() {
   };
 
   const handleAnalysisComplete = async (backendResult: any) => {
-    // Strategy: Get the most recently registered patient from the list, then fetch their full record
-    // This avoids race conditions where the patient record might not be immediately available
-
-    // Helper function to wait
+    // Load the stored record for THIS patient (the ID the backend returned).
+    // If it can't be fetched, show the analysis response itself — never
+    // another patient's record.
     const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+    const patientId = backendResult?.patient_id;
 
-    try {
-      let patientId = backendResult?.patient_id;
-      let retries = 3;
-
-      // If backend provided patient_id, try to fetch directly
-      if (patientId) {
-        console.log('Backend returned patient ID:', patientId);
-
-        // Retry fetching patient record (in case it's not immediately available)
-        while (retries > 0) {
-          try {
-            const fullRecord = await api.getPatientRecord(patientId);
-            setSessionData(fullRecord);
-            console.log('✅ Full patient record loaded successfully');
-            setIsProcessing(false);
-            return;
-          } catch (error) {
-            console.warn(`Attempt ${4 - retries}/3: Patient record not ready yet, retrying...`);
-            retries--;
-            if (retries > 0) {
-              await wait(1000); // Wait 1 second before retry
-            }
-          }
+    if (patientId) {
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const fullRecord = await api.getPatientRecord(patientId);
+          setSessionData(fullRecord);
+          setIsProcessing(false);
+          return;
+        } catch (error) {
+          console.warn(`Attempt ${attempt}/3: record for ${patientId} not ready yet`);
+          if (attempt < 3) await wait(1000);
         }
       }
-
-      // Fallback: Get most recent patient from list
-      console.log('Fetching most recent patient from list...');
-      const patientList = await api.getPatients();
-
-      if (patientList && patientList.length > 0) {
-        const mostRecentPatientId = patientList[patientList.length - 1];
-        console.log('Most recent patient ID from list:', mostRecentPatientId);
-        // need some timing code here to see how long this await runs.
-
-        const fullRecord = await api.getPatientRecord(mostRecentPatientId);
-        setSessionData(fullRecord);
-        console.log('✅ Full patient record loaded from most recent patient');
-      } else {
-        // Last resort: use backend result directly
-        console.warn('⚠️ No patients in list, using backend result directly');
-        setSessionData(backendResult);
-      }
-    } catch (error) {
-      console.error("❌ Failed to fetch patient record:", error);
-      // Last resort fallback: use backend result directly
-      setSessionData(backendResult);
     }
 
+    console.warn('Using the analysis response directly; the stored record could not be loaded.');
+    setSessionData(backendResult);
     setIsProcessing(false);
   };
 
@@ -321,19 +288,13 @@ export default function App() {
     }
   };
 
-  const handleAddScan = (id: string, file: File) => {
-    // Backend looks up this patient's stored tabular data itself via /patient/{id}/predict
-    setSessionData({ id, file, isAddingScan: true });
-    setIsProcessing(true);
-  };
-
   const handleRunNewScan = (id: string) => {
     setSessionData({ id, patient_id: id });
     setIsProcessing(true);
   };
 
   if (!sessionData) {
-    return <IdentificationPage onProceed={handleProceed} onAddScan={handleAddScan} onRunNewScan={handleRunNewScan} />;
+    return <IdentificationPage onProceed={handleProceed} onRunNewScan={handleRunNewScan} />;
   }
 
   if (isProcessing) {
@@ -403,6 +364,8 @@ export default function App() {
   // Extract Machine Learning Architecture Elements cleanly
   const primaryDiag = extractPrimitive(dataToDisplay, "prediction") || extractPrimitive(dataToDisplay, "diagnosis") || "";
   const modelEngineUsed = extractPrimitive(dataToDisplay, "model_used") || extractPrimitive(dataToDisplay, "model used") || "TAB T1w";
+  const modelNote = extractPrimitive(dataToDisplay, "model_note") || undefined;
+  const adStage = extractPrimitive(dataToDisplay, "ad_stage") || undefined;
 
   const probabilitiesMap = extractObject(dataToDisplay, "probabilities");
   const rawConfidence = probabilitiesMap && primaryDiag ? (probabilitiesMap[primaryDiag] ?? 0) : 0;
@@ -414,7 +377,7 @@ export default function App() {
 
   // NEW: Use direct file streaming endpoint (no presigned URLs!)
   // Backend now serves files directly at: /patient/{patient_id}/file/{filename}
-  const BASE_URL = import.meta.env.DEV ? '/api' : 'http://35.159.51.22:8000';
+  const BASE_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? '/api' : 'http://35.159.51.22:8000');
 
 
   let directHeatmapUrl: string | undefined;
@@ -560,29 +523,21 @@ export default function App() {
             <DiagnosisCard 
               diagnosis={primaryDiag} 
               confidence={confidencePercentage} 
-              severity={confidencePercentage > 85 ? "high" : "medium"}
-              description={`Processed via execution pipeline model context: ${modelEngineUsed}. Structural classification map derived from neural network vectors.`}
+              severity={primaryDiag === 'CN' ? "low" : primaryDiag === 'MCI' ? "medium" : "high"}
+              description={`Model: ${modelEngineUsed}`}
+              note={modelNote}
+              stage={adStage}
+              cdr={cdrValue}
             />
 
             <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-6 text-white shadow-lg shadow-blue-100 flex-1 flex flex-col justify-center">
               <h2 className="text-xl font-black mb-1">Diagnostic Explainability</h2>
               <p className="text-blue-55 text-xs font-medium max-w-2xl">
-                This section interprets the machine learning pipeline's weights. It renders spatial tissue structural metrics through Grad-CAM visual overlays along with SHAP clinical contribution indices.
+                The heatmap below shows which brain regions the model focused on. The SHAP chart shows how each clinical value pushed the result towards or away from the diagnosis.
               </p>
             </div>
           </div>
         </div>
-
-        {/* Hidden image preload for heatmap (used in PDF) */}
-        {gradcamObject?.heatmap_png && (
-          <img
-            src={gradcamObject.heatmap_png}
-            alt="Heatmap preload"
-            className="hidden"
-            onLoad={() => setImagesLoaded(prev => ({ ...prev, heatmap: true }))}
-            onError={() => setImagesLoaded(prev => ({ ...prev, heatmap: true }))}
-          />
-        )}
 
         <div className="flex flex-col gap-6 mb-6">
           <div className="w-full">
@@ -602,6 +557,7 @@ export default function App() {
         <div id="pdf-section-shap" className="mb-6">
           <ShapValues
             shap={shapObject || sessionData?.shap}
+            diagnosis={primaryDiag}
             onImageLoad={() => setImagesLoaded(prev => ({ ...prev, shap: true }))}
           />
         </div>
