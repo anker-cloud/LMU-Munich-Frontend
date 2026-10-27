@@ -84,16 +84,18 @@ export function ProcessingPage({ onComplete, onBack, patientId, file, isAddingSc
         result = await api.registerAndPredict(formData, fileToUse);
 
         // Ensure patient_info is included in result for dashboard display
-        // Backend should return this, but we'll merge as fallback
+        // Backend should return this, but we'll merge as fallback.
+        // Blank fields stay empty (shown as N/A), never 0 or "Female".
         if (result && !result.patient_info) {
+          const num = (v: string) => (v === '' || v == null ? null : Number(v));
           result.patient_info = {
-            age: Number(formData.AGE),
-            sex: formData.SEX === "1" ? "Male" : "Female",
-            education: Number(formData.EDUCATION),
-            cdr: Number(formData.CDR),
-            mmse: Number(formData.MMSE),
-            apgen1: Number(formData.APGEN1),
-            apgen2: Number(formData.APGEN2),
+            age: num(formData.AGE),
+            sex: formData.SEX === "1" ? "Male" : formData.SEX === "2" ? "Female" : null,
+            education: num(formData.EDUCATION),
+            cdr: num(formData.CDR),
+            mmse: num(formData.MMSE),
+            apgen1: num(formData.APGEN1),
+            apgen2: num(formData.APGEN2),
           };
         }
       } else {
