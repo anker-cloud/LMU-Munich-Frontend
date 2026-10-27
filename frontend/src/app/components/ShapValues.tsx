@@ -26,7 +26,7 @@ export function ShapValues({ shap, diagnosis, onImageLoad }: ShapValuesProps) {
     return (
       <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900 mb-2">SHAP Values - Feature Importance</h3>
-        <p className="text-sm text-gray-500">No SHAP values for this result. They are only calculated when clinical values were entered.</p>
+        <p className="text-sm text-gray-500">No SHAP values were calculated for this result. They need clinical values and a GPU on the server, and are skipped when an analysis runs without explanations.</p>
       </div>
     );
   }

@@ -394,10 +394,15 @@ export default function App() {
   if (patientId && patientId !== "N/A") {
     // Add cache-busting timestamp to force browser to reload images
     const cacheBust = `?t=${refreshKey}`;
-    directHeatmapUrl = `${BASE_URL}/patient/${patientId}/file/${patientId}_heatmap.png${cacheBust}`;
-    directShapUrl = `${BASE_URL}/patient/${patientId}/file/${patientId}_shap.png${cacheBust}`;
-    // Backend saves gradcam with original_stem prefix (usually "scan")
-    directOverlayNiftiUrl = `${BASE_URL}/patient/${patientId}/file/${patientId}_gradcam.nii.gz${cacheBust}`;
+    // Only link explanation files the current result actually has, so a
+    // heatmap or chart left from an earlier run is never shown with it
+    if (gradcamObject) {
+      directHeatmapUrl = `${BASE_URL}/patient/${patientId}/file/${patientId}_heatmap.png${cacheBust}`;
+      directOverlayNiftiUrl = `${BASE_URL}/patient/${patientId}/file/${patientId}_gradcam.nii.gz${cacheBust}`;
+    }
+    if (shapObject) {
+      directShapUrl = `${BASE_URL}/patient/${patientId}/file/${patientId}_shap.png${cacheBust}`;
+    }
 
     // IMPORTANT: Use the MRI URL provided by the backend (mri_nifti_url)
     // The backend knows which modality (T1w or FLAIR) was used for Grad-CAM generation.
@@ -408,6 +413,9 @@ export default function App() {
       // Remove any existing query params, then add our cache bust
       const baseUrl = backendUrl.split('?')[0];
       directMriNiftiUrl = `${baseUrl}${cacheBust}`;
+    } else if (!gradcamObject) {
+      // No heatmap for this result: still show the stored scan, without overlay
+      directMriNiftiUrl = `${BASE_URL}/patient/${patientId}/file/${patientId}_t1w.nii.gz${cacheBust}`;
     }
   }
 
