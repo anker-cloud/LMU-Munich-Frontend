@@ -540,9 +540,7 @@ export function MRIViewer3D({
         </div>
         <div className="text-[10px] text-slate-500 italic">
           <p>💡 The heatmap shows where the model focused, not how severe any change is. Use 3D for an overview.</p>
-          {overlayUrl && !overlayLoadFailed && (
-            <p>💡 Recommended heatmap threshold: {Math.round(DEFAULT_HEATMAP_THRESHOLD * 100)}%. Raise it to see only the strongest areas.</p>
-          )}
+          <p>💡 Recommended heatmap threshold: {Math.round(DEFAULT_HEATMAP_THRESHOLD * 100)}%. Raise it to see only the strongest areas.</p>
         </div>
         {overlayUrl && nvRef.current?.volumes.length === 2 &&
           typeof nvRef.current.volumes[1]?.global_max !== 'number' && (
