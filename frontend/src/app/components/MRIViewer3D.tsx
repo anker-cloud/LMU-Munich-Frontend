@@ -15,43 +15,6 @@ interface MRIViewer3DProps {
 // to be confirmed with Boris (bug_action_items.md Sl. No 30).
 const DEFAULT_HEATMAP_THRESHOLD = 0.1;
 
-// Heatmap opacity: the 3D render needs a stronger overlay than the slices to
-// stand out on the shaded brain surface.
-const OVERLAY_OPACITY = { slices: 0.5, '3d': 0.85 };
-const RENDER_AZIMUTH = 270;   // view from the left, facing the cut surface
-const RENDER_ELEVATION = 15;
-
-// Slices: the three planes only (no 3D tile). 3D: shaded, brighter brain;
-// "cut open" removes the half facing the viewer, so the heatmap in deep
-// structures (deep grey matter, ventricles) is visible instead of hidden
-// under the cortex. sliceWindow is the grey window used for the slices.
-function applyView(nv: any, mode: '3d' | 'slices', cutOpen: boolean, overlayOn: boolean,
-                   sliceWindow: { min: number; max: number } | null) {
-  const base = nv.volumes?.[0];
-  const overlay = nv.volumes?.[1];
-  if (mode === 'slices') {
-    nv.opts.multiplanarForceRender = false;
-    nv.opts.multiplanarShowRender = 0;  // SHOW_RENDER.NEVER
-    nv.opts.show3Dcrosshair = true;
-    nv.setClipPlane([2, 0, 0]);         // depth 2 = no clip plane
-    if (base && sliceWindow) { base.cal_min = sliceWindow.min; base.cal_max = sliceWindow.max; }
-    if (overlay) overlay.opacity = overlayOn ? OVERLAY_OPACITY.slices : 0;
-    nv.setSliceType(nv.sliceTypeMultiplanar);
-  } else {
-    nv.opts.show3Dcrosshair = false;
-    if (base && sliceWindow) {
-      // brighter grey in 3D: the shaded render is much darker than a slice
-      base.cal_min = sliceWindow.min;
-      base.cal_max = sliceWindow.min + (sliceWindow.max - sliceWindow.min) * 0.7;
-    }
-    if (overlay) overlay.opacity = overlayOn ? OVERLAY_OPACITY['3d'] : 0;
-    nv.setSliceType(nv.sliceTypeRender);
-    nv.setRenderAzimuthElevation(RENDER_AZIMUTH, RENDER_ELEVATION);
-    nv.setClipPlane(cutOpen ? [0, RENDER_AZIMUTH, 0] : [2, 0, 0]);
-  }
-  nv.updateGLVolume();
-}
-
 export function MRIViewer3D({
   mriUrl,
   overlayUrl,
@@ -69,8 +32,6 @@ export function MRIViewer3D({
   // Heatmap values below this are hidden. Was a fixed 0.25, which Boris found
   // too restrictive; the clinician can now set it (heatmap is scaled 0–1).
   const [threshold, setThreshold] = useState(DEFAULT_HEATMAP_THRESHOLD);
-  const [cutOpen, setCutOpen] = useState(true);
-  const sliceWindowRef = useRef<{ min: number; max: number } | null>(null);
   const pendingThresholdRef = useRef<number | null>(null);
   const frameRef = useRef<number | null>(null);
   // Text of the number box next to the slider (percent), kept separately so
@@ -130,8 +91,8 @@ export function MRIViewer3D({
       isRadiologicalConvention: false,  // Use neurological convention
       logging: false,  // Reduce console noise
       isColorbar: true,  // Backend: show activation scale for GradCAM
-      multiplanarForceRender: false,  // slices view shows the three planes only;
-      multiplanarPadding: 4,          // the 3D render has its own view (Show 3D)
+      multiplanarForceRender: true,  // always show the 3D render tile alongside slices
+      multiplanarPadding: 4,         // consistent spacing so tile heights line up
       isNearestInterpolation: false,  // Enable smooth interpolation for overlay rendering
     });
 
@@ -314,7 +275,6 @@ export function MRIViewer3D({
           }
 
           console.log('[MRIViewer3D] Auto-calibrated base volume:', baseVol.cal_min, 'to', baseVol.cal_max);
-          sliceWindowRef.current = { min: baseVol.cal_min ?? 0, max: baseVol.cal_max ?? 1 };
         }
 
         // Check overlay if it was loaded
@@ -340,17 +300,12 @@ export function MRIViewer3D({
           nv.updateGLVolume();
         }
 
-        // Shaded surface in the 3D render, so the folds of the brain stand out
-        try {
-          await nv.setVolumeRenderIllumination(0.5);
-        } catch (err) {
-          console.warn('[MRIViewer3D] Render illumination not available:', err);
-        }
+        // Start with slice view by default
+        nv.setSliceType(nv.sliceTypeMultiplanar);
 
-        // Start with the slices (three planes only)
-        setViewMode('slices');
-        setShowOverlay(true);
-        applyView(nv, 'slices', true, true, sliceWindowRef.current);
+        // Level the 3D render camera (elevation=0) so the brain object is vertically
+        // centered in its tile, matching the always-centered 2D slice tiles.
+        nv.setRenderAzimuthElevation(110, 0);
 
         setLoading(false);
         onLoadComplete?.();
@@ -401,7 +356,7 @@ export function MRIViewer3D({
               onClick={() => {
                 if (!nvRef.current || !nvRef.current.volumes[1]) return;
                 const newShowOverlay = !showOverlay;
-                nvRef.current.volumes[1].opacity = newShowOverlay ? OVERLAY_OPACITY[viewMode] : 0;
+                nvRef.current.volumes[1].opacity = newShowOverlay ? 0.5 : 0;  // Revert to 0.5
                 nvRef.current.updateGLVolume();
                 setShowOverlay(newShowOverlay);
               }}
@@ -413,23 +368,18 @@ export function MRIViewer3D({
               {showOverlay ? 'Hide Heatmap' : 'Show Heatmap'}
             </button>
           )}
-          {viewMode === '3d' && (
-            <button
-              onClick={() => {
-                const next = !cutOpen;
-                setCutOpen(next);
-                if (nvRef.current) applyView(nvRef.current, '3d', next, showOverlay, sliceWindowRef.current);
-              }}
-              className="text-[10px] bg-slate-700 text-white px-3 py-1 rounded hover:bg-slate-800 transition-colors font-bold uppercase tracking-wider"
-            >
-              {cutOpen ? 'Whole Brain' : 'Cut Open'}
-            </button>
-          )}
           <button
             onClick={() => {
               const newMode = viewMode === '3d' ? 'slices' : '3d';
               setViewMode(newMode);
-              if (nvRef.current) applyView(nvRef.current, newMode, cutOpen, showOverlay, sliceWindowRef.current);
+              if (nvRef.current) {
+                if (newMode === 'slices') {
+                  nvRef.current.setSliceType(nvRef.current.sliceTypeMultiplanar);
+                } else {
+                  nvRef.current.setSliceType(nvRef.current.sliceTypeRender);
+                  nvRef.current.setRenderAzimuthElevation(120, 10);
+                }
+              }
             }}
             className="text-[10px] bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition-colors font-bold uppercase tracking-wider"
           >
